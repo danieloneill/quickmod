@@ -71,6 +71,8 @@ The simplest way is via Plasma's system settings, found in "Desktop Mode" on Ste
  * In the now opened *Choose Application* window, click the browse button in the top-right
  * Browse to and select the **quickmod** binary. (Should be at *~/quickmod/build/quickmod* if you build with my directions above.)
  * Click *Apply* in the bottom right of *System Settings* and now you can close it
+ 
+![nxm](https://user-images.githubusercontent.com/10540429/212124402-1aa24108-7658-45b4-86d2-c5360c6af049.png)
 
 #### Notes
 
