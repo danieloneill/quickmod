@@ -1,0 +1,16 @@
+<RCC>
+    <qresource prefix="/">
+        <file>qml/main.qml</file>
+        <file>qml/ModConfiguration.qml</file>
+        <file>qml/ModConfigurationStep.qml</file>
+        <file>qml/ModConfigCheckbox.qml</file>
+        <file>qml/ModConfigRadiobutton.qml</file>
+        <file>qml/ModConfigSection.qml</file>
+        <file>qml/ReviewPage.qml</file>
+        <file>qml/PreferencesDialogue.qml</file>
+        <file>qml/AboutDialogue.qml</file>
+        <file>about.html</file>
+        <file>qml/Database.qml</file>
+        <file>qml/ModsTable.qml</file>
+    </qresource>
+</RCC>
