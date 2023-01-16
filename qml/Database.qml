@@ -1,6 +1,6 @@
 import QtQuick 2.15
 
-import org.ONeill.Sql
+import org.ONeill.Sql 1.0
 
 Item {
     SqlDatabase {
@@ -133,12 +133,53 @@ Item {
         return fileInfo;
     }
 
+    function insertFiles(modId, fileInfos)
+    {
+        if( !checkConnection ) return;
+
+        let q = conn.query("BEGIN DEFERRED TRANSACTION", []);
+        q.destroy();
+        fileInfos.forEach( function(fileInfo) {
+            q = conn.query("INSERT INTO files (modId, relative, source, dest, priority)VALUES(?, ?, ?, ?, ?)",
+                                   [modId, fileInfo['relative'], fileInfo['source'], fileInfo['dest'], fileInfo['priority']]);
+            q.destroy();
+        } );
+        q = conn.query("COMMIT TRANSACTION");
+        q.destroy();
+
+        return true;
+    }
+
     function removeFile(fileId)
     {
         if( !checkConnection ) return;
 
         let q = conn.query("DELETE FROM files WHERE fileId=?", [fileId]);
         q.destroy();
+    }
+
+    function removeModFiles(modId)
+    {
+        if( !checkConnection ) return;
+
+        let q = conn.query("DELETE FROM files WHERE modId=?", [modId]);
+        q.destroy();
+    }
+
+    function removeFiles(fileIds)
+    {
+        if( !checkConnection ) return;
+
+        let q = conn.query("BEGIN DEFERRED TRANSACTION", []);
+        q.destroy();
+        fileIds.forEach( function(fileId) {
+            let q = conn.query("DELETE FROM files WHERE fileId=?", [fileId]);
+            q.destroy();
+        } );
+        q = conn.query("COMMIT TRANSACTION");
+        q.destroy();
+
+        return true;
     }
 
     // Selections

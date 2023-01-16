@@ -12,5 +12,6 @@
         <file>about.html</file>
         <file>qml/Database.qml</file>
         <file>qml/ModsTable.qml</file>
+        <file>qml/ProgressDialogue.qml</file>
     </qresource>
 </RCC>

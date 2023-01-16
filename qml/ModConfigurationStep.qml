@@ -12,12 +12,14 @@ Item {
     property variant m_flagsToSet: ({})
     property variant m_selections: ({})
     property variant m_files: ({})
+    property variant m_folders: ({})
 
     property bool canProceed: true
     function clear() {
-        step.m_flagsToSet = {};
-        step.m_selections = {};
-        step.m_files = {};
+        m_flagsToSet = {};
+        m_selections = {};
+        m_files = {};
+        m_folders = {};
     }
 
     Component.onCompleted: {
@@ -36,6 +38,7 @@ Item {
             const i = groupRepeater.itemAt(a).item;
             if( !i.canProceed )
             {
+                console.log(`Can't proceed because we're blocked by section #${a+1}`);
                 p = false;
                 break;
             }
@@ -97,9 +100,10 @@ Item {
                 anchors.fill: parent
                 anchors.margins: 10
 
-                Text {
+                Label {
                     id: optionDescription
                     wrapMode: Text.Wrap
+                    verticalAlignment: Text.AlignTop
                     Layout.fillWidth: true
                 }
 
@@ -109,7 +113,9 @@ Item {
                     Layout.fillHeight: true
                     fillMode: AnimatedImage.PreserveAspectFit
                     property string imagePath
-                    source: imagePath.length > 0 ? 'file://' + modConfigWindow.m_rootPath + '/../' + imagePath.replace(/\\/g, '/') : ''
+                    source: imagePath.length > 0 ? 'file:///tmp/fomod/../' + imagePath.replace(/\\/g, '/').toLowerCase()
+                          : modConfigWindow.m_modinfo && modConfigWindow.m_modinfo['config'] &&  modConfigWindow.m_modinfo['config']['config']['moduleImage'] ? 'file:///tmp/fomod/../' + modConfigWindow.m_modinfo['config']['config']['moduleImage']['path']['Value'].replace(/\\/g, '/').toLowerCase()
+                          :  ''
                 }
             }
         }

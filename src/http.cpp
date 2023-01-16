@@ -11,7 +11,7 @@ HTTP::HTTP(QQmlApplicationEngine *engine)
     m_qnam = new QNetworkAccessManager(this);
 }
 
-bool HTTP::get(const QString &url, QJSValue &callback, const QVariant &headers)
+bool HTTP::get(const QString &url, QJSValue callback, const QVariant &headers, QJSValue progcb)
 {
     QNetworkRequest request;
     request.setUrl(QUrl(url));
@@ -38,33 +38,50 @@ bool HTTP::get(const QString &url, QJSValue &callback, const QVariant &headers)
     QByteArray *result = new QByteArray();
 
     QNetworkReply *reply = m_qnam->get(request);
+    if( progcb.isCallable() )
+    {
+        connect(reply, &QNetworkReply::downloadProgress, this, [this, progcb](qint64 recv, qint64 tot) mutable {
+            QJSValueList args;
+            QJSValue dataA = this->m_engine->toScriptValue(recv);
+            QJSValue dataB = this->m_engine->toScriptValue(tot);
+            args << dataA;
+            args << dataB;
+            progcb.call(args);
+        });
+    }
     connect(reply, &QIODevice::readyRead, this, [result, reply]() mutable {
         result->append(reply->read(32768));
     });
     connect(reply, &QNetworkReply::finished, this, [reply, result, this, callback]() mutable {
-        QJSValueList args;
-        QJSValue status = this->m_engine->toScriptValue<QString>("OK");
-        QJSValue data = this->m_engine->toScriptValue(*result);
+        if( callback.isCallable() )
+        {
+            QJSValueList args;
+            QJSValue status = this->m_engine->toScriptValue<QString>("OK");
+            QJSValue data = this->m_engine->toScriptValue(*result);
 
-        args << status;
-        args << data;
-        callback.call(args);
+            args << status;
+            args << data;
+            callback.call(args);
+        }
         reply->deleteLater();
     });
     connect(reply, &QNetworkReply::errorOccurred, this, [reply, this, callback]() mutable {
-        QJSValueList args;
-        QJSValue status = this->m_engine->toScriptValue<QString>("ERROR");
-        QJSValue data = this->m_engine->toScriptValue<QString>(reply->errorString());
-        args << status;
-        args << data;
-        callback.call(args);
+        if( callback.isCallable() )
+        {
+            QJSValueList args;
+            QJSValue status = this->m_engine->toScriptValue<QString>("ERROR");
+            QJSValue data = this->m_engine->toScriptValue<QString>(reply->errorString());
+            args << status;
+            args << data;
+            callback.call(args);
+        }
         reply->deleteLater();
     });
 
     return reply->error() == QNetworkReply::NoError;
 }
 
-bool HTTP::getFile(const QString &url, const QString &destPath, QJSValue &callback, const QVariant &headers)
+bool HTTP::getFile(const QString &url, const QString &destPath, QJSValue callback, const QVariant &headers, QJSValue progcb)
 {
     QNetworkRequest request;
     request.setUrl(QUrl(url));
@@ -92,33 +109,52 @@ bool HTTP::getFile(const QString &url, const QString &destPath, QJSValue &callba
     file->open(QIODevice::WriteOnly | QIODevice::Truncate);
 
     QNetworkReply *reply = m_qnam->get(request);
+    if( progcb.isCallable() )
+    {
+        connect(reply, &QNetworkReply::downloadProgress, this, [this, progcb](qint64 recv, qint64 tot) mutable {
+            QJSValueList args;
+            QJSValue dataA = this->m_engine->toScriptValue(recv);
+            QJSValue dataB = this->m_engine->toScriptValue(tot);
+            args << dataA;
+            args << dataB;
+            progcb.call(args);
+        });
+    }
     connect(reply, &QIODevice::readyRead, this, [file, reply]() mutable {
-        file->write( reply->read(32768) );
+        file->write( reply->readAll() );
     });
     connect(reply, &QNetworkReply::finished, this, [reply, file, destPath, this, callback]() mutable {
-        QJSValueList args;
-        QJSValue status = this->m_engine->toScriptValue<QString>("OK");
-        QJSValue data = this->m_engine->toScriptValue(destPath);
-
         file->close();
         file->deleteLater();
 
-        args << status;
-        args << data;
-        callback.call(args);
+        if( callback.isCallable() )
+        {
+            QJSValueList args;
+            QJSValue status = this->m_engine->toScriptValue<QString>("OK");
+            QJSValue data = this->m_engine->toScriptValue(destPath);
+
+            args << status;
+            args << data;
+            callback.call(args);
+        }
         reply->deleteLater();
     });
     connect(reply, &QNetworkReply::errorOccurred, this, [reply, file, destPath, this, callback]() mutable {
-        QJSValueList args;
-        QJSValue status = this->m_engine->toScriptValue<QString>("ERROR");
-        QJSValue data = this->m_engine->toScriptValue(destPath);
-
+        file->flush();
         file->close();
         file->deleteLater();
 
-        args << status;
-        args << data;
-        callback.call(args);
+        if( callback.isCallable() )
+        {
+            QJSValueList args;
+            QJSValue status = this->m_engine->toScriptValue<QString>("ERROR");
+            QJSValue data = this->m_engine->toScriptValue(destPath);
+
+            args << status;
+            args << data;
+            callback.call(args);
+        }
+
         reply->deleteLater();
     });
 

@@ -1,8 +1,13 @@
 #include "utils.h"
 
 #include <QDebug>
+#include <QProcessEnvironment>
 #include <QSettings>
-#include <QStringDecoder>
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+# include <QStringDecoder>
+#else
+# include <QTextCodec>
+#endif
 #include <QUrl>
 #include <QUrlQuery>
 #include <QUuid>
@@ -44,6 +49,10 @@ QString Utils::configGet(const QString &path, const QString &section, const QStr
 
 QString Utils::autoDecode(const QByteArray &encoded)
 {
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+    QTextCodec *codec = QTextCodec::codecForUtfText(encoded);
+    return codec->toUnicode(encoded);
+#else
     std::optional<QStringConverter::Encoding> enc = QStringConverter::encodingForData(encoded);
     if( !enc.has_value() )
     {
@@ -55,6 +64,7 @@ QString Utils::autoDecode(const QByteArray &encoded)
 
     auto dec = QStringDecoder(enc.value());
     return dec(encoded);
+#endif
 }
 
 QString Utils::urlFilename(const QString &url)
@@ -68,4 +78,14 @@ QList< QPair<QString, QString> > Utils::urlQueryItems(const QString &url)
     QUrl u(url);
     QUrlQuery q(u);
     return q.queryItems();
+}
+
+QStringList Utils::envVars()
+{
+    return QProcessEnvironment::systemEnvironment().keys();
+}
+
+QString Utils::getEnv(const QString &name)
+{
+    return QProcessEnvironment::systemEnvironment().value(name);
 }

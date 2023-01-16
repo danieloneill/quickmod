@@ -16,8 +16,8 @@ class HTTP : public QObject
 public:
     explicit HTTP(QQmlApplicationEngine *engine);
 
-    Q_INVOKABLE bool get(const QString &url, QJSValue &callback, const QVariant &headers);
-    Q_INVOKABLE bool getFile(const QString &url, const QString &destPath, QJSValue &callback, const QVariant &headers);
+    Q_INVOKABLE bool get(const QString &url, QJSValue callback, const QVariant &headers=QVariant(), QJSValue progcb=QJSValue());
+    Q_INVOKABLE bool getFile(const QString &url, const QString &destPath, QJSValue callback=QJSValue(), const QVariant &headers=QVariant(), QJSValue progcb=QJSValue());
 };
 
 #endif // HTTP_H

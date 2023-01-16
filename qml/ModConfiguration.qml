@@ -10,9 +10,12 @@ Window {
     width: 800
     height: 600
 
+    Material.theme: Material.Dark
+
     property var m_mod: ({})
     property var m_modinfo: ({})
     property var m_files: []
+    property var m_folders: []
 
     property string m_rootPath
     property alias m_page: modConfigPager.currentIndex
@@ -31,6 +34,7 @@ Window {
         m_mod = {};
         m_modinfo = {};
         m_files = [];
+        m_folders = [];
         m_rootPath = '';
         m_page = 0;
         m_pages = [];
@@ -52,10 +56,9 @@ Window {
                 continue;
 
             p = p['visible'];
-            if( !p['dependencies'])
-                continue;
+            if( p['dependencies'])
+                p = p['dependencies'];
 
-            p = p['dependencies'];
             if( !p['flagDependency'])
                 continue;
 
@@ -85,13 +88,11 @@ Window {
 
     function storeFiles()
     {
-        console.log( (new Error()).stack );
-
         let files = [];
         const entfiles = Object.keys(modConfigPager.currentItem.m_files);
         entfiles.forEach( function(skey) {
             let sels = modConfigPager.currentItem.m_files[skey];
-            console.log(`SELS: ${JSON.stringify(sels)}`);
+            console.log(`File SELS: ${JSON.stringify(sels)}`);
             if( sels )
             {
                 if( !(sels instanceof Array) )
@@ -129,6 +130,50 @@ Window {
             console.log( `Files for page #${a+1} => ${JSON.stringify(modConfigWindow.m_pages[a]['files'])}` );
     }
 
+    function storeFolders()
+    {
+        let files = [];
+        const entfiles = Object.keys(modConfigPager.currentItem.m_folders);
+        entfiles.forEach( function(skey) {
+            let sels = modConfigPager.currentItem.m_folders[skey];
+            console.log(`Folder SELS: ${JSON.stringify(sels)}`);
+            if( sels )
+            {
+                if( !(sels instanceof Array) )
+                    sels = [sels];
+
+                sels.forEach( function(file) {
+                    let fent = {};
+                    if( file['source'] )
+                        fent['source'] = file['source']['Value'];
+
+                    if( file['destination'] )
+                        fent['destination'] = file['destination']['Value'];
+
+                    if( file['priority'] )
+                        fent['priority'] = parseInt(file['priority']['Value']);
+
+                    files.push(fent);
+                } );
+            }
+        });
+
+        // This is a display page, find the original:
+        let a;
+        const targetUUID = m_pagesToDisplay[ modConfigPager.currentIndex ]['uuid'];
+        for( a=0; a < m_pages.length; a++ )
+        {
+            if( m_pages[a]['uuid'] === targetUUID )
+            {
+                modConfigWindow.m_pages[ a ]['folders'] = files;
+                break;
+            }
+        }
+
+        for( a=0; a < m_pages.length; a++ )
+            console.log( `Folders for page #${a+1} => ${JSON.stringify(modConfigWindow.m_pages[a]['folders'])}` );
+    }
+
     function storeFlags()
     {
         const flagset = modConfigPager.currentItem.m_flagsToSet;
@@ -137,6 +182,11 @@ Window {
             modConfigWindow.m_flags[ e ] = flagset[e];
         } );
         modConfigWindow.flagsUpdated();
+    }
+
+    Rectangle {
+        anchors.fill: parent
+        color: Material.background
     }
 
     ColumnLayout {
@@ -205,6 +255,7 @@ Window {
                 text: qsTr('Previous');
                 onClicked: {
                     storeFiles();
+                    storeFolders();
                     storeFlags();
 
                     modConfigPager.decrementCurrentIndex();
@@ -215,6 +266,7 @@ Window {
                 text: modConfigPager.currentIndex < modConfigPager.count - 1 ? qsTr('Next') : qsTr('Finish');
                 onClicked: {
                     storeFiles();
+                    storeFolders();
                     storeFlags();
 
                     if( modConfigPager.currentIndex < modConfigPager.count - 1 )
@@ -238,33 +290,46 @@ Window {
         flagsUpdated();
 
         let finalFileList = [];
+        let finalFolderList = [];
 
         let fileCount = 0;
+        let folderCount = 0;
         for( let a=0; a < m_pagesToDisplay.length; a++ )
         {
-            if( !( m_pagesToDisplay[a]['files'] instanceof Array ) )
-                continue;
-
-            const flist = m_pagesToDisplay[a]['files'];
-            for( let b=0; b < flist.length; b++ )
+            let flist = m_pagesToDisplay[a]['files'];
+            if( flist instanceof Array )
             {
-                const fent = flist[b];
-                let src = fent['source'].replace(/\\/g, '/');
-                let dst = fent['destination'].replace(/\\/g, '/');
-/*
-                if( Qt.platform.os !== 'windows' )
+                for( let b=0; b < flist.length; b++ )
                 {
-                    src = src.toLowerCase();
-                    dst = dst.toLowerCase();
+                    const fent = flist[b];
+                    let src = fent['source'].replace(/\\/g, '/');
+                    let dst = fent['destination'].replace(/\\/g, '/');
+
+                    console.log( `[File ${fileCount+1}] Page #${a+1}: (${b+1}/${flist.length}) Install "${src}" to "${dst}"...` );
+                    finalFileList.push( { 'source':src, 'dest':dst, 'priority':fent['priority'] } );
+                    fileCount++;
                 }
-*/
-                console.log( `[File ${fileCount+1}] Page #${a+1}: (${b+1}/${flist.length}) Install "${src}" to "${dst}"...` );
-                finalFileList.push( { 'source':src, 'dest':dst, 'priority':fent['priority'] } );
-                fileCount++;
+            }
+
+            flist = m_pagesToDisplay[a]['folders'];
+            if( flist instanceof Array )
+            {
+                for( let b=0; b < flist.length; b++ )
+                {
+                    const fent = flist[b];
+                    let src = fent['source'].replace(/\\/g, '/');
+                    let dst = fent['destination'].replace(/\\/g, '/');
+
+                    console.log( `[Folder ${folderCount+1}] Page #${a+1}: (${b+1}/${flist.length}) Install "${src}" to "${dst}"...` );
+                    finalFolderList.push( { 'source':src, 'dest':dst, 'priority':fent['priority'] } );
+                    folderCount++;
+                }
             }
         }
 
         m_files = finalFileList;
+        m_folders = finalFolderList;
+
         readyForInstall();
 
         modConfigWindow.close();

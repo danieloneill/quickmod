@@ -1,13 +1,11 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Controls.Material 2.15
-import QtQuick.Layouts 1.15
 
 import Qt.labs.qmlmodels 1.0
 
-ColumnLayout {
+Item {
     id: modsTable
-    spacing: 0
 
     //property alias header: header
 
@@ -21,8 +19,10 @@ ColumnLayout {
 
     SplitView {
         id: header
-        Layout.fillWidth: true
-        Layout.minimumHeight: 24
+        x: 0-modsList.contentX
+        height: 32
+        width: implicitWidth > parent.width ? implicitWidth : parent.width
+
         readonly property variant preferredWidth: [ 16, header.width*0.2, header.width*0.1, header.width*0.1, header.width*0.4, header.width*0.2 ]
 
         Repeater {
@@ -41,6 +41,7 @@ ColumnLayout {
         Component.onCompleted: {
             try {
                 header.restoreState( settings.modListColumnSizes );
+                modsList.forceLayout();
             } catch(err) {
                 console.log("Couldn't restore column widths. Oh well.");
             }
@@ -52,13 +53,18 @@ ColumnLayout {
 
     TableView {
         id: modsList
-        Layout.fillWidth: true
-        Layout.fillHeight: true
+        anchors {
+            top: header.bottom
+            left: parent.left
+            right: parent.right
+            bottom: parent.bottom
+        }
+
         clip: true
-        boundsBehavior: Flickable.StopAtBounds
+        //boundsBehavior: Flickable.StopAtBounds
 
         delegate: Item {
-            implicitHeight: model.column === 0 ? cellEnabled.height : cellText.implicitHeight
+            implicitHeight: model.column === 0 ? cellEnabled.height : cellText.implicitHeight + 10
             implicitWidth: model.column === 0 ? cellEnabled.width : cellText.implicitWidth
             clip: true
 
@@ -78,6 +84,7 @@ ColumnLayout {
                 id: cellText
                 visible: model.column !== 0
                 text: model.modelData
+                anchors.verticalCenter: parent.verticalCenter
 
                 Menu {
                     id: cellMenu
@@ -108,7 +115,7 @@ ColumnLayout {
                     MenuItem {
                         text: qsTr('Reinstall')
                         enabled: cellMenu.modent && cellMenu.modent['installed'] ? true:false
-                        onTriggered: reinstalLMod(cellMenu.modent);
+                        onTriggered: reinstallMod(cellMenu.modent);
                     }
                 }
                 MouseArea {

@@ -19,6 +19,9 @@ public:
     Q_INVOKABLE QString urlFilename(const QString &url);
     Q_INVOKABLE QList< QPair<QString, QString> > urlQueryItems(const QString &url);
 
+    Q_INVOKABLE QStringList envVars();
+    Q_INVOKABLE QString getEnv(const QString &name);
+
 signals:
 
 };

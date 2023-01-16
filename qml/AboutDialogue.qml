@@ -18,7 +18,7 @@ Dialog {
 
     Item {
         implicitHeight: aboutText.implicitHeight + 20
-        implicitWidth: aboutText.implicitWidth + 20
+        implicitWidth: mainWin.width * 0.75
         TextArea {
             id: aboutText
             anchors.fill: parent
@@ -33,5 +33,5 @@ Dialog {
         }
     }
 
-    Component.onCompleted: aboutText.text = File.read("../about.html");
+    Component.onCompleted: aboutText.text = File.read(":/about.html");
 }

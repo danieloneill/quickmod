@@ -31,48 +31,50 @@ int main(int argc, char *argv[])
     app.setApplicationName("quickmod");
     app.setApplicationVersion("1.0");
 
-    if( argc > 1 )
+    QStringList args;
+
+    for( int i=1; i < argc; i++ )
     {
-        QString argList;
-        for( int x=0; x < argc; x++ )
-            argList.append( QString("[%1]").arg(argv[x]) );
-        argList.append("\n");
+        qDebug() << "arg:" << argv[i];
 
-        QFile tf("/tmp/blehhh");
-        tf.open(QIODevice::WriteOnly | QIODevice::Append);
-        tf.write( argList.toUtf8() );
-        tf.close();
+        QString arg = QString(argv[i]);
+        args << arg;
 
-        QString path = QString(argv[1]);
-        if( !path.startsWith("nxm") )
+        if( arg.startsWith('-') )
+            continue;
+        else
         {
-            qDebug() << "Ehhh, I expect an nxm:// URL";
-            return 3;
-        }
-
-        if( !QDBusConnection::sessionBus().isConnected() )
-        {
-            qDebug() << "Cannot connect to the D-Bus session bus.\n"
-                     << "To start it, run:\n"
-                     << "\teval `dbus-launch --auto-syntax`\n";
-            return 1;
-        }
-
-        QDBusInterface iface(SERVICE_NAME, "/", "", QDBusConnection::sessionBus());
-        if( iface.isValid() )
-        {
-            QDBusReply<QString> reply = iface.call("download", path);
-            if (reply.isValid()) {
-                qDebug() << "Reply was:" << qPrintable(reply.value());
-                return 0;
+            QString path = QString(argv[i]);
+            if( !path.startsWith("nxm") )
+            {
+                qDebug() << "Ehhh, I expect an nxm:// URL";
+                return 3;
             }
 
-            qDebug() << "Call failed:" << qPrintable(reply.error().message());
-            return 1;
-        }
+            if( !QDBusConnection::sessionBus().isConnected() )
+            {
+                qDebug() << "Cannot connect to the D-Bus session bus.\n"
+                         << "To start it, run:\n"
+                         << "\teval `dbus-launch --auto-syntax`\n";
+                return 1;
+            }
 
-        qDebug() << qPrintable(QDBusConnection::sessionBus().lastError().message());
-        return 2;
+            QDBusInterface iface(SERVICE_NAME, "/", "", QDBusConnection::sessionBus());
+            if( iface.isValid() )
+            {
+                QDBusReply<QString> reply = iface.call("download", path);
+                if (reply.isValid()) {
+                    qDebug() << "Reply was:" << qPrintable(reply.value());
+                    return 0;
+                }
+
+                qDebug() << "Call failed:" << qPrintable(reply.error().message());
+                return 1;
+            }
+
+            qDebug() << qPrintable(QDBusConnection::sessionBus().lastError().message());
+            return 2;
+        }
     }
 
     QQmlApplicationEngine engine;
@@ -88,6 +90,7 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("Utils", utils);
     engine.rootContext()->setContextProperty("NXMHandler", nxmHandler);
     engine.rootContext()->setContextProperty("HTTP", http);
+    engine.rootContext()->setContextProperty("Args", args);
 
     qmlRegisterType<SqlDatabase>("org.ONeill.Sql", 1, 0, "SqlDatabase");
     qmlRegisterUncreatableType<SqlDatabaseQuery>("org.ONeill.Sql", 1, 0, "SqlDatabaseQuery", "SQL database query instantiated by SqlDatabaseConnection::query");

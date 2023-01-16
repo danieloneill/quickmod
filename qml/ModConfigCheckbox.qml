@@ -39,7 +39,7 @@ CheckBox {
     function updateChecked() {
         // Files:
         modConfigPage.m_files[token] = [];
-        if( checked && files['file'] )
+        if( checked && files && files['file'] )
         {
             console.log(`Adding files: ${JSON.stringify(files['file'])}...`);
 
@@ -48,16 +48,19 @@ CheckBox {
             else
                 modConfigPage.m_files[token].push(files['file']);
         }
-        if( checked && files['folder'] )
+        console.log(`Files for page: ${JSON.stringify(modConfigPage.m_files)}`);
+
+        modConfigPage.m_folders[token] = [];
+        if( checked && files && files['folder'] )
         {
             console.log(`Adding folders: ${JSON.stringify(files['folder'])}...`);
 
             if( files['folder'] instanceof Array )
-                files['folder'].forEach( f => modConfigPage.m_files[token].push(f) );
+                files['folder'].forEach( f => modConfigPage.m_folders[token].push(f) );
             else
-                modConfigPage.m_files[token].push(files['folder']);
+                modConfigPage.m_folders[token].push(files['folder']);
         }
-        console.log(`Files for page: ${JSON.stringify(modConfigPage.m_files)}`);
+        console.log(`Folders for page: ${JSON.stringify(modConfigPage.m_folders)}`);
 
         // Flags:
         if( !conditionFlags )
@@ -79,5 +82,7 @@ CheckBox {
                 delete modConfigPage.m_flagsToSet[ ent['name']['Value'] ];
             } );
         }
+
+        modConfigWindow.storeFlags();
     }
 }
