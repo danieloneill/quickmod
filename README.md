@@ -11,7 +11,7 @@ What I'm trying to say is: This probably isn't the app you want.
 
 ### Requirements
 
- * Qt 6.2+
+ * Qt 5.12+
  * libarchive 3.6.0+
 
 ### Building
@@ -21,7 +21,7 @@ leetguy@gibson:~$ git clone --depth 1 "https://github.com/danieloneill/quickmod.
 leetguy@gibson:~$ cd quickmod
 leetguy@gibson:~/quickmod$ mkdir build
 leetguy@gibson:~/quickmod$ cd build
-leetguy@gibson:~/quickmod/build$ qmake-qt6 ..
+leetguy@gibson:~/quickmod/build$ qmake ..
 Info: creating stash file /home/leetguy/quickmod/build/.qmake.stash
 leetguy@gibson:~/quickmod/build$ make -j6
 <CPU FAN GOES BRRRRRRR>
@@ -84,4 +84,4 @@ The simplest way is via Plasma's system settings, found in "Desktop Mode" on Ste
 
 * At present, this has been tested with 6 different mods and correctly functions with those 6. YMMV with whatever mod, but if it fails to install (or something breaks) please create a ticket with the mod name as the title.
 
-
+* Mods are installed in order, and loaded in that order. This isn't what anybody wants, but for now there is no load order manager. You'll have to manually edit your loadorder.txt because of this (for now).
