@@ -1145,7 +1145,7 @@ ApplicationWindow {
                     let matchedConds = 0;
                     fds.forEach( function(fd) {
                         const flagn = fd['flag']['Value'];
-                        const flagv = fd['value']['Value'].toLowerCase();
+                        const flagv = fd['value']['Value'];
                         console.log(`Checking condition: ${flagn} => ${flagv} vs. ${flags[flagn]}`);
                         if( flags[flagn] === flagv )
                             matchedConds++;
