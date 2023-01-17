@@ -13,5 +13,6 @@
         <file>qml/Database.qml</file>
         <file>qml/ModsTable.qml</file>
         <file>qml/ProgressDialogue.qml</file>
+        <file>qml/OverwriteDialogue.qml</file>
     </qresource>
 </RCC>

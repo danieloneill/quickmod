@@ -121,6 +121,28 @@ Item {
         return results;
     }
 
+    function getFilesByDests(dests)
+    {
+        if( !checkConnection ) return;
+
+        let qstr = "SELECT fileId, modId, relative, source, dest, priority FROM files";
+        let token = ' WHERE ';
+        let args = [];
+
+        // I has feels this is gonna get beat tf up...
+        dests.forEach( function(d) {
+            qstr += token + "dest=?";
+            token = ' OR ';
+            args.push(d);
+        } );
+
+        let q = conn.query(qstr, args);
+        const results = q.toArray();
+        q.destroy();
+
+        return results;
+    }
+
     function insertFile(modId, fileInfo)
     {
         if( !checkConnection ) return;

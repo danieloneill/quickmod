@@ -93,8 +93,11 @@ bool File::write(const QString &path, const QByteArray &data)
 QByteArray File::read(const QString &path)
 {
     QByteArray result;
+    QString rpath = path;
+    if( !rpath.startsWith(':') )
+        rpath = resolveCase(path);
 
-    QFile f(resolveCase(path));
+    QFile f(rpath);
     if( !f.open(QIODevice::ReadOnly) )
         return result;
 

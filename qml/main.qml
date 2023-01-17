@@ -90,18 +90,15 @@ ApplicationWindow {
         }
     }
 
-    SplitView {
+    ModsTable {
         anchors.fill: parent
-
-        ModsTable {
-            model: modMasterList
-            onInstallMod: function(mod) { mainWin.installMod(mod); }
-            onUninstallMod: function(mod) { mainWin.uninstallMod(mod); }
-            onEnableMod: function(mod) { mainWin.enableMod(mod); }
-            onDisableMod: function(mod) { mainWin.disableMod(mod); }
-            onReinstallMod: function(mod) { mainWin.reinstallMod(mod); }
-            onDeleteMod: function(mod) { mainWin.deleteMod(mod); }
-        }
+        model: modMasterList
+        onInstallMod: function(mod) { mainWin.installMod(mod); }
+        onUninstallMod: function(mod) { mainWin.uninstallMod(mod); }
+        onEnableMod: function(mod) { mainWin.enableMod(mod); }
+        onDisableMod: function(mod) { mainWin.disableMod(mod); }
+        onReinstallMod: function(mod) { mainWin.reinstallMod(mod); }
+        onDeleteMod: function(mod) { mainWin.deleteMod(mod); }
     }
 
     Settings {
@@ -910,6 +907,25 @@ ApplicationWindow {
         return entry;
     }
 
+    function checkOverwrites(fileMap)
+    {
+        let overwrites = [];
+        Object.keys(fileMap).forEach( function(fsource) {
+            const fdest = fileMap[fsource];
+            const st = File.stat(fdest);
+            if( st['exists'] )
+            {
+                let ent = { 'source':fsource, 'destination':fdest };
+                const conflictingFiles = db.getFilesByDests([fdest]);
+                if( conflictingFiles.length > 0 )
+                    ent['providers'] = conflictingFiles;
+
+                overwrites.push( ent );
+            }
+        } );
+        return overwrites;
+    }
+
     function addESP(espname)
     {
         const entry = installedEntity(mainWin.currentGame);
@@ -935,7 +951,7 @@ ApplicationWindow {
         if( !f )
             return false;
 
-        const mname = f['Name']['Characters'];
+        const mname = f['Name'] ? f['Name']['Characters'] : mod['root'].split(/\//g).pop();
         if( !mname )
             return false;
 
@@ -1082,9 +1098,29 @@ ApplicationWindow {
 
         const relative = modinfo['relative'];
 
-        // I haven't yet seen a mod that uses this, but according to
-        // https://fomod-docs.readthedocs.io/en/latest/ it's a thing.
-        // Unfortunately, that also means I haven't really tested it.
+        let addMaybe = function(to, ent)
+        {
+            if( !ent )
+                return;
+
+            if( !(ent instanceof Array) )
+            {
+                const nent = {};
+                nent['source'] = ent['source'] ? ent['source']['Value'].replace(/\/\//g, '/') : '';
+                nent['dest'] = ent['destination'] ? ent['destination']['Value'].replace(/\/\//g, '/') : '';
+                nent['priority'] = ent['priority'] ? ent['priority']['Value'] : 0;
+                to.push(nent);
+                return;
+            }
+
+            ent.forEach( function(f) {
+                const nent = {};
+                nent['source'] = f['source'] ? f['source']['Value'].replace(/\/\//g, '/') : '';
+                nent['dest'] = f['destination'] ? f['destination']['Value'].replace(/\/\//g, '/') : '';
+                nent['priority'] = f['priority'] ? f['priority']['Value'] : 0;
+                to.push(nent);
+            } );
+        }
 
         const cfi = modinfo['config']['config']['conditionalFileInstalls'];
         if( cfi && cfi['patterns'] && cfi['patterns']['pattern'] )
@@ -1125,17 +1161,8 @@ ApplicationWindow {
                     if( !condfiles )
                         continue;
 
-                    const cfiles = condfiles['file'];
-                    if( cfiles instanceof Array )
-                        cfiles.forEach( f => files.push( { 'source':f['source'] ? f['source']['Value'] : '', 'dest':f['destination'] ? f['destination']['Value'] : '', 'priority':f['priority'] ? f['priority']['Value'] : 0 } ) );
-                    else if( cfiles )
-                        files.push({ 'source':cfiles['source'] ? cfiles['source']['Value'] : '', 'dest':cfiles['destination'] ? cfiles['destination']['Value'] : '', 'priority':cfiles['priority'] ? cfiles['priority']['Value'] : 0 });
-
-                    const cfolders = condfiles['folder'];
-                    if( cfolders instanceof Array )
-                        cfolders.forEach( f => folders.push( { 'source':f['source'] ? f['source']['Value'] : '', 'dest':f['destination'] ? f['destination']['Value'] : '', 'priority':f['priority'] ? f['priority']['Value'] : 0 } ) );
-                    else if( cfolders )
-                        folders.push({ 'source':cfolders['source'] ? cfolders['source']['Value'] : '', 'dest':cfolders['destination'] ? cfolders['destination']['Value'] : '', 'priority':cfolders['priority'] ? cfolders['priority']['Value'] : 0 });
+                    addMaybe(files, condfiles['file']);
+                    addMaybe(folders, condfiles['folder']);
                 }
             }
         }
@@ -1143,20 +1170,11 @@ ApplicationWindow {
         const rfi = modinfo['config']['config']['requiredInstallFiles'];
         if( rfi )
         {
-            const cfiles = rfi['file'];
-            if( cfiles instanceof Array )
-                cfiles.forEach( f => files.push( { 'source':f['source'] ? f['source']['Value'] : '', 'dest':f['destination'] ? f['destination']['Value'] : '', 'priority':f['priority'] ? f['priority']['Value'] : 0 } ) );
-            else if( cfiles )
-                files.push({ 'source':cfiles['source'] ? cfiles['source']['Value'] : '', 'dest':cfiles['destination'] ? cfiles['destination']['Value'] : '', 'priority':cfiles['priority'] ? cfiles['priority']['Value'] : 0 });
+            addMaybe(files, rfi['file']);
+            addMaybe(folders, rfi['folder']);
 
-            const cfolders = rfi['folder'];
-            if( cfolders instanceof Array )
-                cfolders.forEach( f => folders.push( { 'source':f['source'] ? f['source']['Value'] : '', 'dest':f['destination'] ? f['destination']['Value'] : '', 'priority':f['priority'] ? f['priority']['Value'] : 0 } ) );
-            else if( cfolders )
-                folders.push({ 'source':cfolders['source'] ? cfolders['source']['Value'] : '', 'dest':cfolders['destination'] ? cfolders['destination']['Value'] : '', 'priority':cfolders['priority'] ? cfolders['priority']['Value'] : 0 });
-
-            console.log(`Adding required files: ${JSON.stringify(cfiles)}`);
-            console.log(`Adding required folders: ${JSON.stringify(cfolders)}`);
+            console.log(`Adding required files: ${JSON.stringify(rfi['file'])}`);
+            console.log(`Adding required folders: ${JSON.stringify(rfi['folder'])}`);
         }
 
         const filelist = File.archiveList(filepath);
@@ -1165,8 +1183,9 @@ ApplicationWindow {
         for( let c=0; c < files.length; c++ )
         {
             let f = files[c];
-            const src = `${relative.length > 0 ? relative+"/" : ""}${f['source']}`;
-            const dpath = `${sobj.gamePath}/${currentGameEntry['datadir']}/${f['dest']}`;
+            const fdest = f['dest'].replace(/\/\//g, '/');
+            const src = `${relative.length > 0 ? relative+"/" : ""}${f['source']}`.replace(/\/\//g, '/');
+            const dpath = `${sobj.gamePath}/${currentGameEntry['datadir']}/${fdest}`;
             //console.log(`1: Extract "${src}" -> "${dpath}"`);
 
             if( !filelist.find( e => { return e['path'].toLowerCase() === src.toLowerCase() && e['type'] === 'file' } ) )
@@ -1179,15 +1198,16 @@ ApplicationWindow {
             fileMap[src] = dpath;
 
             f['source'] = src;
-            f['dest'] = dpath;
+            f['dest'] = fdest;
             toCommit.push(f);
         }
 
         for( let c=0; c < folders.length; c++ )
         {
             let f = folders[c];
+            const fdest = f['dest'].replace(/\/\//g, '/');
             const src = `${relative.length > 0 ? relative+"/" : ""}${f['source']}`;
-            const dpath = `${sobj.gamePath}/${currentGameEntry['datadir']}/${f['dest']}`;
+            const dpath = `${sobj.gamePath}/${currentGameEntry['datadir']}/${fdest}`;
             //console.log(`1: Extract "${src}" -> "${dpath}"`);
 
             // const folderParts = f['source'].split(/\//g).filter( e => e.length > 0 && e !== '/' );
@@ -1215,14 +1235,15 @@ ApplicationWindow {
                 if( !matched ) continue;
 
                 const pathtail = arcfile['path'].substr( src.length );
-                const nsrc = src + pathtail;
-                const ndest = dpath + pathtail;
+                const nsrc = (src + pathtail).replace(/\/\//g, '/');
+                const ndest = (dpath + pathtail).replace(/\/\//g, '/');
+                const recdest = (fdest + pathtail).replace(/\/\//g, '/');
 
                 console.log(`Extract "${nsrc}" -> "${ndest}"`);
                 fileMap[nsrc] = ndest;
 
                 //File.extractSourceDest(filepath, nsrc, ndest);
-                let nf = { 'source':nsrc, 'dest':ndest };
+                let nf = { 'source':nsrc, 'dest':recdest };
                 toCommit.push(nf);
                 extractedForPath++;
             }
@@ -1230,6 +1251,9 @@ ApplicationWindow {
             if( 0 === extractedForPath )
                 console.log(` *** No folders found for extraction for path: ${src}`);
         }
+
+        // Avoid overwriting:
+        const overwrites = checkOverwrites(fileMap);
 
         console.log(`DB committing files: ${JSON.stringify(toCommit,null,2)}`);
 
@@ -1279,6 +1303,7 @@ ApplicationWindow {
                 continue;
 
             let parts = f['path'].split(/\//g);
+            const fpath = f['path'].replace(/\/\//g, '/');
             let fdpath = f['path'];
 
             if( topdirs.length === 1 )
@@ -1299,14 +1324,17 @@ ApplicationWindow {
                 console.log("Mod author is possibly killing me, Smalls.  Compensating...");
                 if( parts.length > 1 )
                     parts.shift();
+                else
+                    parts.unshift('..'); // TODO: Maybe this should be sobj['gamePath']? For gamebryo this will work, though.
+
                 fdpath = parts.join('/');
             }
 
-            const dpath = sobj.gamePath + '/' + currentGameEntry['datadir'] + '/' + fdpath;
+            const dpath = (sobj.gamePath + '/' + currentGameEntry['datadir'] + '/' + fdpath).replace(/\/\//g, '/');
             console.log(`Extract "${f['path']}" -> "${dpath}"`);
-            fileMap[f['path']] = dpath;
+            fileMap[fpath] = dpath;
             //File.extractSourceDest(filepath, f['path'], dpath);
-            toCommit.push( { 'source':f['path'], 'dest':fdpath, 'priority':0 } )
+            toCommit.push( { 'source':fpath, 'dest':fdpath, 'priority':0 } )
         }
 
         if( Object.keys(fileMap).length > 0 )
