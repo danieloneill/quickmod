@@ -5,7 +5,7 @@ Basic mod manager for Fallout 4, Fallout 4 VR, Skyrim SE/AE, and Skyrim VR on **
 
 *There is no warranty if it messes up your Steam installation, or your entire PC*
 
-What I'm trying to say is: This probably isn't the app you want.
+What I'm trying to say is: **This probably isn't the app you want.**
 
 ## Building
 
@@ -33,6 +33,8 @@ leetguy@gibson:~/quickmod/build$ ./quickmod
 This is rather important because at this point in development there is barely any error checking. It's assumed you have everything **just right**.
 
 #### Setup
+
+*(Screenshots are from earlier Qt6 development build so yours may look slightly different, but the steps are the same.)*
 
 In the *File* menu open *Settings*:
 
@@ -80,8 +82,15 @@ The simplest way is via Plasma's system settings, found in "Desktop Mode" on Ste
 
 * Quickmod must be open *and* have the correct target game selected for Nexusmods (NXM) links to work. **If you try to install a mod for Fallout 4 while you have Skyrim AE selected, it'll just blindly install the mod into your Skyrim AE data, which probably isn't what you want.**
 
-* Mods like F4SE/SKSE themselves probably won't install correctly, you gotta set all that up yourself. This app isn't currently capable of doing it, but luckily it's a well-documented process which isn't any different on Windows.
+* Mods like F4SE/SKSE themselves won't install correctly, you gotta set all that up yourself. This app isn't currently capable of doing it, but luckily it's a well-documented process which isn't difficult to do manually.
 
-* At present, this has been tested with 6 different mods and correctly functions with those 6. YMMV with whatever mod, but if it fails to install (or something breaks) please create a ticket with the mod name as the title.
+* At present, this has been tested with a handful of mods, and it correctly functions with those. YMMV with whatever mod, but if it fails to install (or something breaks) please create a ticket with the mod name as the title.
 
 * Mods are installed in order, and loaded in that order. This isn't what anybody wants, but for now there is no load order manager. You'll have to manually edit your loadorder.txt because of this (for now).
+
+* There currently is no "overwrite" protection: the latest mod will simply overwrite any other files (including masters).
+
+* File tracking is VERY crude: if a new mod overwrites files in a different mod, that file will simply be deleted when either mod is uninstalled.
+
+
+I view this version (in its current state) as more of a learning exercise. Having written it to this stage (which actually works) I can see what I would change in a rewrite, which is my next big plan.
