@@ -10,8 +10,458 @@
 
 #define BUFFSIZE 32768 * 64
 
-File::File(QObject *parent)
-    : QObject{parent},
+static ssize_t arc_cb_read(struct archive *archive, void *userdata, const void **buf)
+{
+    Q_UNUSED(archive)
+
+    ArchiveWorker *w = static_cast<ArchiveWorker *>(userdata);
+    if( !w->m_fd )
+        return -30;
+
+    if( w->m_stopRequested )
+        return 0;
+
+    w->m_block = w->m_fd->read(BUFFSIZE);
+    *buf = w->m_block.constData();
+    //qDebug() << ":: arc_cb_read result:" << w->m_block.size();
+    return w->m_block.size();
+}
+
+static int64_t arc_cb_skip(struct archive *archive, void *userdata, int64_t bytes)
+{
+    Q_UNUSED(archive)
+
+    //qDebug() << ":: arc_cb_skip" << bytes;
+
+    ArchiveWorker *w = static_cast<ArchiveWorker *>(userdata);
+    if( !w->m_fd )
+        return -1;
+
+    if( w->m_stopRequested )
+        return 0;
+
+    qint64 pos = w->m_fd->pos();
+    qint64 len = w->m_fd->size();
+    if( pos + bytes > len )
+        bytes = len - pos;
+
+    qint64 npos = pos + bytes;
+    if( !w->m_fd->seek(npos) )
+        return 0;
+
+    return bytes;
+}
+
+static int64_t arc_cb_seek(struct archive *archive, void *userdata, int64_t bytes, int whence)
+{
+    Q_UNUSED(archive)
+
+    //qDebug() << ":: arc_cb_seek" << bytes << whence;
+
+    ArchiveWorker *w = static_cast<ArchiveWorker *>(userdata);
+    if( !w->m_fd )
+        return -1;
+
+    if( w->m_stopRequested )
+        return 0;
+
+    if( SEEK_SET == whence )
+    {
+        w->m_fd->seek(bytes);
+    }
+    else if( SEEK_CUR == whence )
+    {
+        qint64 pos = w->m_fd->pos();
+        qint64 npos = pos + bytes;
+        w->m_fd->seek(npos);
+    }
+    else if( SEEK_END == whence )
+    {
+        qint64 len = w->m_fd->size();
+        qint64 npos = len - bytes;
+        w->m_fd->seek(npos);
+    }
+
+    return w->m_fd->pos();
+}
+
+static int arc_cb_close(struct archive *archive, void *userdata)
+{
+    Q_UNUSED(archive)
+
+    ArchiveWorker *w = static_cast<ArchiveWorker *>(userdata);
+    if( !w->m_fd )
+        return -1;
+
+    w->m_fd->close();
+    w->m_fd->deleteLater();
+    w->m_fd = NULL;
+    return ARCHIVE_OK;
+}
+
+ArchiveWorker::ArchiveWorker(ArchiveController *parent, File *file, const QString &archivePath)
+    : QThread(parent),
+      m_controller{parent},
+      m_file{file},
+      m_archivePath{archivePath},
+      m_stopRequested{false}
+{
+    m_fd = new QFile(m_archivePath);
+    if( !m_fd->open(QIODevice::ReadOnly) )
+    {
+        qWarning() << QObject::tr("Failed to open file \"%1\": %2").arg(m_archivePath).arg(m_fd->errorString());
+        m_fd->deleteLater();
+        m_fd = nullptr;
+    }
+
+    m_archive = archive_read_new();
+    archive_read_support_filter_all(m_archive);
+    archive_read_support_format_all(m_archive);
+    archive_read_set_callback_data(m_archive, this);
+    archive_read_set_read_callback(m_archive, arc_cb_read);
+    archive_read_set_skip_callback(m_archive, arc_cb_skip);
+    archive_read_set_seek_callback(m_archive, arc_cb_seek);
+    archive_read_set_close_callback(m_archive, arc_cb_close);
+    archive_read_open1(m_archive);
+}
+
+ArchiveWorker::~ArchiveWorker()
+{
+    m_stopRequested = true;
+
+    if( m_fd )
+        m_fd->deleteLater();
+
+    archive_read_free(m_archive);
+}
+
+void ArchiveWorker::stop()
+{
+    m_stopRequested = true;
+}
+
+ArchiveListWorker::ArchiveListWorker(ArchiveController *parent, File *file, const QString &archivePath)
+    : ArchiveWorker(parent, file, archivePath)
+{
+}
+
+ArchiveListWorker::~ArchiveListWorker()
+{
+}
+
+void ArchiveListWorker::run()
+{
+    struct archive_entry *entry = NULL;
+    QVariantList results;
+
+    if( !m_fd )
+    {
+        emit done(false, results);
+        return;
+    }
+
+    while( !m_stopRequested && archive_read_next_header(m_archive, &entry) == ARCHIVE_OK )
+    {
+        QVariantMap ent;
+        ent["pathname"] = archive_entry_pathname(entry);
+        ent["size"] = QVariant::fromValue<qint64>(archive_entry_size(entry));
+
+        mode_t mode = archive_entry_mode(entry);
+        ent["type"] = "file";
+        if( S_ISDIR(mode) )
+            ent["type"] = "dir";
+
+        results.append(ent);
+
+        archive_read_data_skip(m_archive);
+    }
+
+    emit done(true, results);
+}
+
+ArchiveExtractToMemoryWorker::ArchiveExtractToMemoryWorker(ArchiveController *parent, File *file, const QString &archivePath, const QStringList &targets)
+    : ArchiveWorker(parent, file, archivePath),
+      m_targets{targets}
+{
+}
+
+ArchiveExtractToMemoryWorker::~ArchiveExtractToMemoryWorker()
+{
+}
+
+void ArchiveExtractToMemoryWorker::run()
+{
+    struct archive_entry *entry = NULL;
+    ssize_t size;
+    QVariantMap results;
+    char buff[BUFFSIZE];
+
+    if( !m_fd )
+    {
+        emit done(false, results);
+        return;
+    }
+
+    QStringList lowKeys;
+    for( QString target : m_targets )
+        lowKeys << target.toLower();
+
+    int position = 0;
+    while( !m_stopRequested && archive_read_next_header(m_archive, &entry) == ARCHIVE_OK )
+    {
+        mode_t mode = archive_entry_mode(entry);
+        QString path = QString::fromUtf8( archive_entry_pathname(entry) );
+        QString lowPath = path.toLower();
+
+        int kidx = lowKeys.indexOf(lowPath);
+        if( -1 == kidx || S_ISDIR(mode) )
+        {
+            archive_read_data_skip(m_archive);
+            continue;
+        }
+
+        QString thisfile = m_targets[kidx];
+
+        QByteArray contents;
+        for (;;) {
+            size = archive_read_data(m_archive, buff, BUFFSIZE);
+            if (size < 0)
+            {
+                if( m_stopRequested )
+                {
+                    emit done(false, results);
+                    return;
+                }
+
+                results[thisfile] = false;
+                //qDebug() << ":: error" << archive_error_string(m_archive);
+                break;
+            }
+
+            if (size == 0)
+                break;
+
+            contents.append(buff, size);
+        }
+        position++;
+
+        emit progress(position, lowKeys.length(), thisfile, QString());
+
+        results[thisfile] = contents;
+    }
+
+    emit done(true, results);
+}
+
+ArchiveExtractToFileWorker::ArchiveExtractToFileWorker(ArchiveController *parent, File *file, const QString &archivePath, const QVariantMap &matrix)
+    : ArchiveWorker(parent, file, archivePath),
+      m_matrix{matrix}
+{
+}
+
+ArchiveExtractToFileWorker::~ArchiveExtractToFileWorker()
+{
+}
+
+void ArchiveExtractToFileWorker::run()
+{
+    struct archive_entry *entry = NULL;
+    ssize_t size;
+    QVariantMap results;
+    char buff[BUFFSIZE];
+
+    if( !m_fd )
+    {
+        emit done(false, results);
+        return;
+    }
+
+    QStringList keys, lowKeys;
+    for( QString target : m_matrix.keys() )
+    {
+        keys << target;
+        lowKeys << target.toLower();
+    }
+
+    int position = 1;
+    while( !m_stopRequested && archive_read_next_header(m_archive, &entry) == ARCHIVE_OK )
+    {
+        mode_t mode = archive_entry_mode(entry);
+        QString path = QString::fromUtf8( archive_entry_pathname(entry) );
+        QString lowPath = path.toLower();
+
+        int kidx = lowKeys.indexOf(lowPath);
+        if( -1 == kidx || S_ISDIR(mode) )
+        {
+            archive_read_data_skip(m_archive);
+            continue;
+        }
+
+        QString thisfile = keys[kidx];
+        QString dest = m_matrix[ thisfile ].toString();
+
+        QString resolvedDest = m_file->resolveCase(dest);
+        QFile f(resolvedDest);
+        if( !m_file->mkfilepath(resolvedDest) || !f.open(QIODevice::WriteOnly | QIODevice::Truncate) )
+        {
+            emit progress(position++, lowKeys.length(), thisfile, dest);
+            results[thisfile] = false;
+            continue;
+        }
+
+        for (;;) {
+            size = archive_read_data(m_archive, buff, BUFFSIZE);
+            if (size < 0)
+            {
+                if( m_stopRequested )
+                {
+                    emit done(false, results);
+                    return;
+                }
+
+                qDebug() << ":: error" << archive_error_string(m_archive);
+                break;
+            }
+
+            if (size == 0)
+                break;
+
+            f.write(buff, size);
+        }
+
+        f.flush();
+        f.close();
+
+        emit progress(position++, lowKeys.length(), thisfile, dest);
+        results[thisfile] = true;
+    }
+
+    emit done(true, results);
+}
+
+ArchiveController::ArchiveController(const QString &archivePath, File *file)
+    : QObject(file),
+      m_file{file},
+      m_archivePath{archivePath}
+{
+}
+
+ArchiveController::~ArchiveController()
+{
+    qDebug() << "ArchiveController::~ArchiveController()";
+}
+
+ArchiveListWorker *ArchiveController::list(QJSValue finished)
+{
+    if( !m_fileListing.isEmpty() )
+    {
+        if( finished.isCallable() )
+        {
+            QJSValueList args;
+            args << m_file->m_engine->toScriptValue(true);
+            args << m_file->m_engine->toScriptValue(m_fileListing);
+            finished.call(args);
+        }
+
+        return NULL;
+    }
+
+    ArchiveListWorker *w = new ArchiveListWorker(this, m_file, m_archivePath);
+    connect(w, &ArchiveListWorker::done, this, &ArchiveController::listFinished);
+    connect(w, &ArchiveWorker::finished, w, &QObject::deleteLater);
+    m_callmap[w] = QPair(QJSValue(), finished);
+
+    w->start();
+    return w;
+}
+
+ArchiveExtractToMemoryWorker *ArchiveController::get(const QStringList &targets, QJSValue finished, QJSValue progress)
+{
+    ArchiveExtractToMemoryWorker *w = new ArchiveExtractToMemoryWorker(this, m_file, m_archivePath, targets);
+    connect( w, &ArchiveExtractToMemoryWorker::done, this, &ArchiveController::extractToMemoryFinished );
+    connect( w, &ArchiveExtractToMemoryWorker::progress, this, &ArchiveController::workerProgress );
+    connect(w, &ArchiveWorker::finished, w, &QObject::deleteLater);
+    m_callmap[w] = QPair(progress, finished);
+
+    w->start();
+    return w;
+}
+
+ArchiveExtractToFileWorker *ArchiveController::extract(const QVariantMap &matrix, QJSValue finished, QJSValue progress)
+{
+    ArchiveExtractToFileWorker *w = new ArchiveExtractToFileWorker(this, m_file, m_archivePath, matrix);
+    connect( w, &ArchiveExtractToFileWorker::done, this, &ArchiveController::extractToFileFinished );
+    connect( w, &ArchiveExtractToFileWorker::progress, this, &ArchiveController::workerProgress );
+    connect(w, &ArchiveWorker::finished, w, &QObject::deleteLater);
+    m_callmap[w] = QPair(progress, finished);
+
+    w->start();
+    return w;
+}
+
+void ArchiveController::listFinished(bool result, const QVariantList &entries)
+{
+    ArchiveWorker *w = qobject_cast<ArchiveWorker *>(sender());
+    m_fileListing = entries;
+    QJSValue *cb_f = &m_callmap[w].second;
+    if( cb_f->isCallable() )
+    {
+        QJSValueList args;
+        args << m_file->m_engine->toScriptValue(result);
+        args << m_file->m_engine->toScriptValue(entries);
+        cb_f->call(args);
+    }
+    w->deleteLater();
+    m_callmap.remove(w);
+}
+
+void ArchiveController::extractToMemoryFinished(bool result, const QVariantMap &contents)
+{
+    ArchiveWorker *w = qobject_cast<ArchiveWorker *>(sender());
+    QJSValue *cb_f = &m_callmap[w].second;
+    if( cb_f->isCallable() )
+    {
+        QJSValueList args;
+        args << m_file->m_engine->toScriptValue(result);
+        args << m_file->m_engine->toScriptValue<QVariantMap>(contents);
+        cb_f->call(args);
+    }
+    w->deleteLater();
+    m_callmap.remove(w);
+}
+
+void ArchiveController::extractToFileFinished(bool result, const QVariantMap &contents)
+{
+    ArchiveWorker *w = qobject_cast<ArchiveWorker *>(sender());
+    QJSValue *cb_f = &m_callmap[w].second;
+    if( cb_f->isCallable() )
+    {
+        QJSValueList args;
+        args << m_file->m_engine->toScriptValue(result);
+        args << m_file->m_engine->toScriptValue<QVariantMap>(contents);
+        cb_f->call(args);
+    }
+    w->deleteLater();
+    m_callmap.remove(w);
+}
+
+void ArchiveController::workerProgress(qreal processed, qreal total, const QString &latestSource, const QString &latestDest)
+{
+    ArchiveWorker *w = qobject_cast<ArchiveWorker *>(sender());
+    QJSValue *cb_p = &m_callmap[w].first;
+    if( cb_p->isCallable() )
+    {
+        QJSValueList args;
+        args << m_file->m_engine->toScriptValue(processed);
+        args << m_file->m_engine->toScriptValue(total);
+        args << m_file->m_engine->toScriptValue(latestSource);
+        args << m_file->m_engine->toScriptValue(latestDest);
+        cb_p->call(args);
+    }
+}
+
+File::File(QQmlApplicationEngine *engine)
+    : m_engine{engine},
       m_simulate{false}
 {
 
@@ -184,6 +634,7 @@ bool File::mkfilepath(const QString &path)
         qDebug() << tr("SIMULATE: Mkpath \"%1\"").arg(containerDir);
         return true;
     }
+
     return dir.mkpath(containerDir);
 }
 
@@ -207,7 +658,7 @@ QVariant File::dirContents(const QString &path)
     }
     return results;
 }
-
+/*
 QByteArray File::extract(const QString &archivePath, const QString &filePath)
 {
     QByteArray result;
@@ -441,6 +892,12 @@ bool File::extractBatch(const QString &archivePath, const QVariantMap &fileMap)
         return false;
 
     return retval;
+}
+*/
+ArchiveController *File::archive(const QString &archivePath)
+{
+    ArchiveController *ac = new ArchiveController(archivePath, this);
+    return ac;
 }
 
 QString File::resolveCaseDir(const QDir &root, const QString &part)

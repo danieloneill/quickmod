@@ -28,6 +28,7 @@ Dialog {
             let sobj = repeaterSettings.objFor(g['name']);
             ent.enabled = sobj.enabled || false;
             ent.modspath = sobj.modsPath || `/DATA/SteamLibrary/steamapps/common/${g['gamedir']}/Quickmods`;
+            ent.modstagingpath = sobj.modStagingPath || `/DATA/SteamLibrary/steamapps/common/${g['gamedir']}/QuickmodStaging`;
             ent.gamepath = sobj.gamePath || `/DATA/SteamLibrary/steamapps/common/${g['gamedir']}`;
             ent.userpath = sobj.userDataPath || `/DATA/SteamLibrary/steamapps/compatdata/${g['steamid']}/pfx/drive_c/users/steamuser`;
         }
@@ -43,6 +44,7 @@ Dialog {
             let sobj = repeaterSettings.objFor(g['name']);
             sobj.enabled = ent.enabled;
             sobj.modsPath = ent.modspath;
+            sobj.modStagingPath = ent.modstagingpath;
             sobj.gamePath = ent.gamepath;
             sobj.userDataPath = ent.userpath;
         }
@@ -107,6 +109,7 @@ Dialog {
 
                 property alias enabled: cbEnabled.checked
                 property alias modspath: modsPath.text
+                property alias modstagingpath: modStagingPath.text
                 property alias gamepath: gamePath.text
                 property alias userpath: userDataPath.text
 
@@ -136,7 +139,7 @@ Dialog {
                         Layout.fillWidth: true
 
                         ToolTip.visible: hovered
-                        ToolTip.text: qsTr('Eg: /DATA/SteamLibrary/steamapps/common/%1/Quickmods').arg(gamename)
+                        ToolTip.text: qsTr('This is where the mod archive itself is stashed for safe-keeping.\n\nEg: /DATA/SteamLibrary/steamapps/common/%1/Quickmods').arg(gamename)
                     }
 
                     Button {
@@ -148,7 +151,33 @@ Dialog {
                         }
 
                         ToolTip.visible: hovered
-                        ToolTip.text: qsTr('Eg: /DATA/SteamLibrary/steamapps/common/%1/Quickmods').arg(gamename)
+                        ToolTip.text: qsTr('This is where the mod archive itself is stashed for safe-keeping.\n\nEg: /DATA/SteamLibrary/steamapps/common/%1/Quickmods').arg(gamename)
+                    }
+
+                    Label {
+                        text: qsTr('Mod Staging Directory:')
+                        enabled: cbEnabled.checked
+                    }
+
+                    TextField {
+                        id: modStagingPath
+                        enabled: cbEnabled.checked
+                        Layout.fillWidth: true
+
+                        ToolTip.visible: hovered
+                        ToolTip.text: qsTr('This is where mods are extracted to.\n\nEg: /DATA/SteamLibrary/steamapps/common/%1/QuickmodStaging').arg(gamename)
+                    }
+
+                    Button {
+                        text: qsTr('Browse...')
+                        enabled: cbEnabled.checked
+                        onClicked: {
+                            modStagingPathDialogue.currentFolder = 'file://' + modStagingPath.text;
+                            modStagingPathDialogue.open();
+                        }
+
+                        ToolTip.visible: hovered
+                        ToolTip.text: qsTr('This is where mods are extracted to.\n\nEg: /DATA/SteamLibrary/steamapps/common/%1/QuickmodStaging').arg(gamename)
                     }
 
                     Label {
@@ -162,7 +191,7 @@ Dialog {
                         Layout.fillWidth: true
 
                         ToolTip.visible: hovered
-                        ToolTip.text: qsTr('Eg: /DATA/SteamLibrary/steamapps/common/%1').arg(gamename)
+                        ToolTip.text: qsTr('Where the game is installed.\n\nEg: /DATA/SteamLibrary/steamapps/common/%1').arg(gamename)
                     }
 
                     Button {
@@ -174,7 +203,7 @@ Dialog {
                         }
 
                         ToolTip.visible: hovered
-                        ToolTip.text: qsTr('Eg: /DATA/SteamLibrary/steamapps/common/%1').arg(gamename)
+                        ToolTip.text: qsTr('Where the game is installed.\n\nEg: /DATA/SteamLibrary/steamapps/common/%1').arg(gamename)
                     }
 
                     Label {
@@ -188,7 +217,7 @@ Dialog {
                         Layout.fillWidth: true
 
                         ToolTip.visible: hovered
-                        ToolTip.text: qsTr('Eg: /DATA/SteamLibrary/steamapps/compatdata/%1/pfx/drive_c/users/steamuser').arg(steamid)
+                        ToolTip.text: qsTr('This is the root directory of wherever your data and preferences are stored.\n\nEg: /DATA/SteamLibrary/steamapps/compatdata/%1/pfx/drive_c/users/steamuser').arg(steamid)
                     }
 
                     Button {
@@ -200,7 +229,7 @@ Dialog {
                         }
 
                         ToolTip.visible: hovered
-                        ToolTip.text: qsTr('Eg: /DATA/SteamLibrary/steamapps/compatdata/%1/pfx/drive_c/users/steamuser').arg(steamid)
+                        ToolTip.text: qsTr('This is the root directory of wherever your data and preferences are stored.\n\nEg: /DATA/SteamLibrary/steamapps/compatdata/%1/pfx/drive_c/users/steamuser').arg(steamid)
                     }
                 } // GridLayout
 
@@ -210,6 +239,15 @@ Dialog {
                     title: qsTr("Select where to store installed mods...")
                     onAccepted: {
                         modsPath.text = (''+folder).substring(7);
+                    }
+                }
+
+                Platform.FolderDialog {
+                    id: modsStagingPathDialogue
+                    //visible: false
+                    title: qsTr("Select where to extract mods to...")
+                    onAccepted: {
+                        modStagingPath.text = (''+folder).substring(7);
                     }
                 }
 

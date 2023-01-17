@@ -14,5 +14,6 @@
         <file>qml/ModsTable.qml</file>
         <file>qml/ProgressDialogue.qml</file>
         <file>qml/OverwriteDialogue.qml</file>
+        <file>qml/downloader.js</file>
     </qresource>
 </RCC>

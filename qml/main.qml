@@ -6,6 +6,8 @@ import QtQuick.Layouts 1.15
 import Qt.labs.settings 1.0
 import Qt.labs.platform 1.1 as Platform
 
+import 'downloader.js' as Downloader
+
 ApplicationWindow {
     id: mainWin
     width: 640
@@ -91,6 +93,7 @@ ApplicationWindow {
     }
 
     ModsTable {
+        id: modTable
         anchors.fill: parent
         model: modMasterList
         onInstallMod: function(mod) { mainWin.installMod(mod); }
@@ -122,92 +125,16 @@ ApplicationWindow {
         anchors.centerIn: parent
     }
 
-    property bool m_downloading: false
-    property var m_downloadQueue: []
-    function downloadNext()
-    {
-        m_downloading = false;
-        if( m_downloadQueue.length > 0 )
-        {
-            const f = m_downloadQueue.shift();
-            mainWin.downloadFile(f);
-        }
-    }
-    function downloadFile(path)
-    {
-        if( m_downloading )
-        {
-            m_downloadQueue.push(path);
-            return;
-        }
-
-        m_downloading = true;
-
-        console.log(` >>> ${path} <<< `);
-
-        const halves = path.substring(6).split('?');
-        const mainInfo = halves[0].split(/\//g);
-        const qparts = halves[1].split(/\&/g);
-
-        let query = {};
-        qparts.forEach( e => { const p = e.split('='); query[ p[0] ] = p[1]; } );
-
-        console.log(`Info: ${JSON.stringify(mainInfo,null,2)}`);
-        console.log(`QParts: ${JSON.stringify(qparts,null,2)}`);
-
-        const reqUrl = `https://api.nexusmods.com/v1/games/${mainInfo[0]}/mods/${mainInfo[2]}/files/${mainInfo[4]}/download_link.json?key=${query['key']}&expires=${query['expires']}&user_id=${query['user_id']}`;
-        console.log(reqUrl);
-
-        const headers = { 'apiKey':settings.nexusApiKey };
-        console.log(`Headers: ${JSON.stringify(headers,null,2)}`);
-        HTTP.get(reqUrl, function(code, content) {
-            console.log(`Result: Code=${code} / Content:${content}`);
-            if( code === 'OK' )
-            {
-                let json = {};
-                try {
-                    json = JSON.parse(content);
-                } catch(err) {
-                    console.log(`Parse error: ${err}`);
-                    return downloadNext();
-                }
-
-                console.log("Json: "+JSON.stringify(json,null,2));
-                const fileUrl = json[0]['URI'];
-                console.log("URL: "+fileUrl);
-                const fileName = Utils.urlFilename(fileUrl);
-                console.log("Extrapolated filename: "+fileName);
-
-                let sobj = repeaterSettings.objFor(currentGame);
-                const destPath = sobj.modsPath + '/' + fileName;
-
-                downloadProgress.value = 0;
-                downloadProgress.to = 0;
-                downloadProgress.text = fileName;
-                downloadProgress.open();
-                HTTP.getFile(fileUrl, destPath, function(code, path, tot) {
-                    console.log(`Result: ${code}`);
-                    if( 'OK' === code )
-                    {
-                        downloadProgress.close();
-                        installFromFilesystem(destPath);
-                    } else // Error
-                        downloadProgress.close();
-                    downloadNext();
-                }, headers, function(val, tot) {
-                    downloadProgress.to = tot;
-                    downloadProgress.value = val;
-                } );
-            } else
-                downloadNext();
-        }, headers);
+    ProgressDialogue {
+        id: extractProgress
+        anchors.centerIn: parent
     }
 
     Connections {
         target: NXMHandler
         function onDownloadRequested(path)
         {
-            mainWin.downloadFile(path);
+            Downloader.downloadFile(path);
         }
     }
 
@@ -264,114 +191,135 @@ ApplicationWindow {
         }
     }
 */
+    /*
     function configFromArchive(archive, target)
     {
         console.log(`Going to extract "${target}" from ${archive}...`);
         const raw = File.extract(archive, target);
         return FomodReader.readXMLFile( Utils.autoDecode(raw) );
     }
+    */
 
-    function manifestFromFomod(filepath)
+    function manifestFromFomod(filepath, cb)
     {
-        const filelist = File.archiveList(filepath);
-        if( filelist.length === 0 )
-        {
-            console.log("Empty file listing for archive, it's ... probably corrupted.");
-            return false;
-        }
-        console.log("CONTENTS: "+JSON.stringify(filelist,null,2));
-
-        let fomodDir = '';
-        let fomodLow = '';
-        let pathInfo = false;
-        let pathConfig = false;
-        filelist.forEach( function(e) {
-            if( e['type'] === 'dir' && ( e['path'].toLowerCase().endsWith('fomod') || e['path'].toLowerCase().endsWith('fomod/') ) )
-                fomodDir = e['path'];
-        } );
-
-        let rel = '';
-        if( fomodDir )
-        {
-            if( fomodDir.endsWith('/') )
-                fomodDir = fomodDir.substring(0, fomodDir.length-1);
-
-            fomodLow = fomodDir.toLowerCase();
-            console.log("FomodDir: "+fomodDir);
-
-            let fomodParts = fomodDir.split(/\//g);
-            if( fomodParts.length > 1 )
+        const a = File.archive(filepath);
+        a.list( function(success, filelist) {
+            if( filelist.length === 0 )
             {
-                fomodParts.pop();
-                rel = fomodParts.join('/');
+                console.log("Empty file listing for archive, it's ... probably corrupted.");
+                return false;
+            }
+            console.log("CONTENTS: "+JSON.stringify(filelist,null,2));
+
+            let fomodDir = '';
+            let fomodLow = '';
+            let pathInfo = false;
+            let pathConfig = false;
+            filelist.forEach( function(e) {
+                if( e['type'] === 'dir' && ( e['pathname'].toLowerCase().endsWith('fomod') || e['pathname'].toLowerCase().endsWith('fomod/') ) )
+                    fomodDir = e['pathname'];
+            } );
+
+            let rel = '';
+
+            const finish = function()
+            {
+                let result = {
+                    'root':filepath,
+                    'relative':rel,
+                    'fomodDir':fomodDir
+                };
+
+                if( pathInfo )
+                {
+                    const raw = File.read('/tmp/fomod/info.xml');
+                    result['info'] = FomodReader.readXMLFile( Utils.autoDecode(raw) );
+                }
+                if( pathConfig )
+                {
+                    const raw = File.read('/tmp/fomod/moduleconfig.xml');
+                    result['config'] = FomodReader.readXMLFile( Utils.autoDecode(raw) );
+                }
+
+                console.log(`Result: ${JSON.stringify(result,null,2)}`);
+
+                cb(result);
             }
 
-            pathInfo = filelist.find( e => e.path.toLowerCase() === fomodLow + '/info.xml' );
-            pathConfig = filelist.find( e => e.path.toLowerCase() === fomodLow + '/moduleconfig.xml' );
+            if( fomodDir )
+            {
+                if( fomodDir.endsWith('/') )
+                    fomodDir = fomodDir.substring(0, fomodDir.length-1);
 
-            if( pathInfo )
-                pathInfo = pathInfo['path'];
-            if( pathConfig )
-                pathConfig = pathConfig['path'];
+                fomodLow = fomodDir.toLowerCase();
+                console.log("FomodDir: "+fomodDir);
 
-            // Just grab the whole fomod contents, plop it in tmp:
-            File.rmrecursive("/tmp/fomod");
-            File.mkdir("/tmp/fomod", false);
-            let toExtract = {};
-            filelist.forEach(function(e) {
-                if( e.path.toLowerCase().startsWith(fomodLow) )
-                    toExtract[ e['path'] ] = '/tmp/fomod/'+e['path'].substring(fomodDir.length+1).toLowerCase();
-            });
-            console.log("To Extract: "+JSON.stringify(toExtract,null,2));
-            File.extractBatch(filepath, toExtract);
-        }
+                let fomodParts = fomodDir.split(/\//g);
+                if( fomodParts.length > 1 )
+                {
+                    fomodParts.pop();
+                    rel = fomodParts.join('/');
+                }
 
-        let result = {
-            'root':filepath,
-            'relative':rel,
-            'fomodDir':fomodDir
-        };
+                pathInfo = filelist.find( e => e['pathname'].toLowerCase() === fomodLow + '/info.xml' );
+                pathConfig = filelist.find( e => e['pathname'].toLowerCase() === fomodLow + '/moduleconfig.xml' );
 
-        if( pathInfo )
-        {
-            const raw = File.read('/tmp/fomod/info.xml');
-            result['info'] = FomodReader.readXMLFile( Utils.autoDecode(raw) );
-        }
-        if( pathConfig )
-        {
-            const raw = File.read('/tmp/fomod/moduleconfig.xml');
-            result['config'] = FomodReader.readXMLFile( Utils.autoDecode(raw) );
-        }
+                if( pathInfo )
+                    pathInfo = pathInfo['pathname'];
+                if( pathConfig )
+                    pathConfig = pathConfig['pathname'];
 
-        console.log(`Result: ${JSON.stringify(result,null,2)}`);
+                // Just grab the whole fomod contents, plop it in tmp:
+                File.rmrecursive("/tmp/fomod");
+                File.mkdir("/tmp/fomod", false);
+                let toExtract = {};
+                filelist.forEach(function(e) {
+                    if( e['pathname'].toLowerCase().startsWith(fomodLow) )
+                        toExtract[ e['pathname'] ] = '/tmp/fomod/'+e['pathname'].substring(fomodDir.length+1).toLowerCase();
+                });
+                console.log("To Extract: "+JSON.stringify(toExtract,null,2));
 
-        return result;
+                a.extract(toExtract, function(success, results) {
+                    finish();
+                }, function(sofar, total, latestSource, latestDest) {
+                    console.log(`Progress: [${sofar} / ${total}]: ${latestSource}\t => ${latestDest}`);
+                });
+                //File.extractBatch(filepath, toExtract);
+            }
+            else
+                finish();
+        } );
     }
 
-    function installFromFilesystem(filepath)
+    function installFromFilesystem(filepath, cb)
     {
-        let result = manifestFromFomod(filepath);
-        if( false === result )
-            return false;
-
-        if( !result['config'] || !result['info'] )
-        {
-            const baseName = filepath.split(/\//g).pop();
-            let ent = { 'filename':'', 'installed':false, 'enabled':false, 'name':baseName, 'author':'Unknown', 'version':'??', 'website':'', 'description':'', 'groups':[] };
-            if( result['info'] )
+        manifestFromFomod(filepath, function(result) {
+            if( false === result )
             {
-                if( result['info']['fomod']['Name']['Characters'] )
-                    ent['name'] = result['info']['fomod']['Name']['Characters'];
-
-                ent['author'] = result['info']['fomod']['Author']['Characters'];
-                ent['version'] = result['info']['fomod']['Version']['Characters'];
-                ent['description'] = result['info']['fomod']['Description']['Characters'];
+                cb(false);
+                return;
             }
 
-            return addMod2(filepath, ent)
-        }
+            if( !result['config'] || !result['info'] )
+            {
+                const baseName = filepath.split(/\//g).pop();
+                let ent = { 'filename':'', 'installed':false, 'enabled':false, 'name':baseName, 'author':'Unknown', 'version':'??', 'website':'', 'description':'', 'groups':[] };
+                if( result['info'] )
+                {
+                    if( result['info']['fomod']['Name']['Characters'] )
+                        ent['name'] = result['info']['fomod']['Name']['Characters'];
 
-        return addMod(result);
+                    ent['author'] = result['info']['fomod']['Author']['Characters'];
+                    ent['version'] = result['info']['fomod']['Version']['Characters'];
+                    ent['description'] = result['info']['fomod']['Description']['Characters'];
+                }
+
+                cb( addMod2(filepath, ent) );
+                return;
+            }
+
+            cb( addMod(result) );
+        });
     }
 
     Platform.FileDialog {
@@ -428,6 +376,50 @@ ApplicationWindow {
         loadForGame();
 
         settingsChanged();
+/*
+        // Testing:
+        console.log("Testing... ");
+        console.log("----------");
+        const a = File.archive("/DATA/SteamLibrary/steamapps/common/Skyrim Special Edition/Quickmods/StarClothMage.tar.xz");
+
+        const startTimeB = new Date();
+        const ents = ["zImages/Screenshot 2022-01-29 210536.png"];
+        let ba = a.get(ents, function(found, contents) {
+            const nowB = new Date();
+            console.log(`${found ? 'Extracted' : 'Failed to find'} ${ents[0]} (${contents[ents[0]].byteLength}B) in ${nowB.getTime()-startTimeB.getTime()}ms`);
+        } );
+
+        const startTimeA = new Date();
+        let w = a.list( function(result, entries) {
+            const nowA = new Date();
+            console.log(`Read ${entries.length} entries in ${nowA.getTime()-startTimeA.getTime()}ms. Beginning extract (all):`);
+
+            const paths = entries.filter( e => e['type'] === 'file' );
+            let matrix = {};
+            paths.forEach( e => { matrix[ e['pathname'] ] = '/tmp/test/'+e['pathname']; } );
+            console.log(JSON.stringify(matrix,null,2));
+
+            const startTimeC = new Date();
+            a.extract( matrix, function(code, map) {
+                const nowC = new Date();
+                console.log('Behold!');
+                console.log('--------')
+                const keys = Object.keys(map);
+                let succeeded = 0;
+                keys.forEach( function(k) {
+                    if( map[k] !== true )
+                        console.log(`Failed to extract file "${k}": ${map[k]}`);
+                    else
+                        succeeded++;
+                } );
+                console.log(`${succeeded} of ${paths.length} successfully extracted in ${nowC.getTime()-startTimeC.getTime()}ms`);
+
+            }, function(sofar, total, latestSource, latestDest) {
+                console.log(`Progress: [${sofar} / ${total}]: ${latestSource}\t => ${latestDest}`);
+            } );
+        } );
+*/
+
 /*
         // DEBUG
         const cfgraw = File.read('/home/doneill/code/quickmod/fun.xml');
@@ -730,6 +722,7 @@ ApplicationWindow {
             property alias enabled: intobj.enabled
             property alias gamePath: intobj.gamePath
             property alias modsPath: intobj.modsPath
+            property alias modStagingPath: intobj.modStagingPath
             property alias userDataPath: intobj.userDataPath
 
             Settings {
@@ -739,6 +732,7 @@ ApplicationWindow {
                 property bool enabled: false
                 property string gamePath
                 property string modsPath
+                property string modStagingPath
                 property string userDataPath
             }
         }
@@ -1026,21 +1020,33 @@ ApplicationWindow {
             statusBar.text = qsTr('An error happened when trying to enable mods for "%1".').arg(entry['name']);
     }
 
-    function installMod(mod)
+    function installMod(mod, cb)
     {
+        let wrappedCB = function(result)
+        {
+            modTable.enabled = true;
+            menuBar.enabled = true;
+            if( cb )
+                cb(result);
+        }
+
+        modTable.enabled = false;
+        menuBar.enabled = false;
+
         console.log(`Installmod: ${JSON.stringify(mod,null,2)}`);
         let sobj = repeaterSettings.objFor(currentGame);
         const filepath = sobj.modsPath + '/' + mod['filename'];
 
         console.log(`Attempting to read manifest from fomod: ${filepath}`);
-        let result = manifestFromFomod(filepath);
-        if( false === result )
-            return false;
+        manifestFromFomod(filepath, function(result) {
+            if( false === result )
+                return wrappedCB(false);
 
-        if( !result['config'] )
-            return installBasicMod(mod);
+            if( !result['config'] )
+                return wrappedCB( installBasicMod(mod) );
 
-        configureMod(mod, result);
+            wrappedCB( configureMod(mod, result) );
+        });
     }
 
     function reinstallMod(mod)
@@ -1177,96 +1183,111 @@ ApplicationWindow {
             console.log(`Adding required folders: ${JSON.stringify(rfi['folder'])}`);
         }
 
-        const filelist = File.archiveList(filepath);
-        let fileMap = {};
-        let toCommit = [];
-        for( let c=0; c < files.length; c++ )
-        {
-            let f = files[c];
-            const fdest = f['dest'].replace(/\/\//g, '/');
-            const src = `${relative.length > 0 ? relative+"/" : ""}${f['source']}`.replace(/\/\//g, '/');
-            const dpath = `${sobj.gamePath}/${currentGameEntry['datadir']}/${fdest}`;
-            //console.log(`1: Extract "${src}" -> "${dpath}"`);
+        if( !mod['archiveObject'] )
+            mod['archiveObject'] = File.archive(filepath);
 
-            if( !filelist.find( e => { return e['path'].toLowerCase() === src.toLowerCase() && e['type'] === 'file' } ) )
+        mod['archiveObject'].list( function(result, filelist) {
+            let fileMap = {};
+            let toCommit = [];
+            for( let c=0; c < files.length; c++ )
             {
-                console.log(` *** No files found for extraction for path: ${src}`);
-                continue;
-            }
+                let f = files[c];
+                const fdest = f['dest'].replace(/\/\//g, '/');
+                const src = `${relative.length > 0 ? relative+"/" : ""}${f['source']}`.replace(/\/\//g, '/');
+                const dpath = `${sobj.gamePath}/${currentGameEntry['datadir']}/${fdest}`;
+                //console.log(`1: Extract "${src}" -> "${dpath}"`);
 
-            console.log(`Extract "${src}" -> "${dpath}"`);
-            fileMap[src] = dpath;
-
-            f['source'] = src;
-            f['dest'] = fdest;
-            toCommit.push(f);
-        }
-
-        for( let c=0; c < folders.length; c++ )
-        {
-            let f = folders[c];
-            const fdest = f['dest'].replace(/\/\//g, '/');
-            const src = `${relative.length > 0 ? relative+"/" : ""}${f['source']}`;
-            const dpath = `${sobj.gamePath}/${currentGameEntry['datadir']}/${fdest}`;
-            //console.log(`1: Extract "${src}" -> "${dpath}"`);
-
-            // const folderParts = f['source'].split(/\//g).filter( e => e.length > 0 && e !== '/' );
-            const folderParts = src.split(/\//g).filter( e => e.length > 0 && e !== '/' );
-
-            let extractedForPath = 0;
-
-            // Handle directories, or as fomod calls them "folders":
-            for( let d=0; d < filelist.length; d++ )
-            {
-                const arcfile = filelist[d];
-                if( arcfile['type'] !== 'file' )
-                    continue;
-
-                const arcParts = arcfile['path'].split(/\//g).filter( e => e.length > 0 && e !== '/' );
-
-                let matched = true;
-                for( let e=0; e < folderParts.length && matched; e++ )
+                if( !filelist.find( e => { return e['pathname'].toLowerCase() === src.toLowerCase() && e['type'] === 'file' } ) )
                 {
-                    if( folderParts[e].toLowerCase() !== arcParts[e].toLowerCase() )
-                        matched = false;
+                    console.log(` *** No files found for extraction for path: ${src}`);
+                    continue;
                 }
 
-                //console.log(`Found that "${arcfile['path']}" ${matched ? "contains":"does not contain"} "${src}"`);
-                if( !matched ) continue;
+                console.log(`Extract "${src}" -> "${dpath}"`);
+                fileMap[src] = dpath;
 
-                const pathtail = arcfile['path'].substr( src.length );
-                const nsrc = (src + pathtail).replace(/\/\//g, '/');
-                const ndest = (dpath + pathtail).replace(/\/\//g, '/');
-                const recdest = (fdest + pathtail).replace(/\/\//g, '/');
-
-                console.log(`Extract "${nsrc}" -> "${ndest}"`);
-                fileMap[nsrc] = ndest;
-
-                //File.extractSourceDest(filepath, nsrc, ndest);
-                let nf = { 'source':nsrc, 'dest':recdest };
-                toCommit.push(nf);
-                extractedForPath++;
+                f['source'] = src;
+                f['dest'] = fdest;
+                toCommit.push(f);
             }
 
-            if( 0 === extractedForPath )
-                console.log(` *** No folders found for extraction for path: ${src}`);
-        }
+            for( let c=0; c < folders.length; c++ )
+            {
+                let f = folders[c];
+                const fdest = f['dest'].replace(/\/\//g, '/');
+                const src = `${relative.length > 0 ? relative+"/" : ""}${f['source']}`;
+                const dpath = `${sobj.gamePath}/${currentGameEntry['datadir']}/${fdest}`;
+                //console.log(`1: Extract "${src}" -> "${dpath}"`);
 
-        // Avoid overwriting:
-        const overwrites = checkOverwrites(fileMap);
+                // const folderParts = f['source'].split(/\//g).filter( e => e.length > 0 && e !== '/' );
+                const folderParts = src.split(/\//g).filter( e => e.length > 0 && e !== '/' );
 
-        console.log(`DB committing files: ${JSON.stringify(toCommit,null,2)}`);
+                let extractedForPath = 0;
 
-        if( Object.keys(fileMap).length > 0 )
-            File.extractBatch(filepath, fileMap);
-        if( toCommit.length > 0 )
-            db.insertFiles(mod['modId'], toCommit);
+                // Handle directories, or as fomod calls them "folders":
+                for( let d=0; d < filelist.length; d++ )
+                {
+                    const arcfile = filelist[d];
+                    if( arcfile['type'] !== 'file' )
+                        continue;
 
-        mod['installed'] = true;
-        db.updateMod(mod);
+                    const arcParts = arcfile['pathname'].split(/\//g).filter( e => e.length > 0 && e !== '/' );
 
-        statusBar.text = qsTr('Mod "%1" has been installed.').arg(mod['name']);
-        modMasterList = db.getMods();
+                    let matched = true;
+                    for( let e=0; e < folderParts.length && matched; e++ )
+                    {
+                        if( folderParts[e].toLowerCase() !== arcParts[e].toLowerCase() )
+                            matched = false;
+                    }
+
+                    //console.log(`Found that "${arcfile['path']}" ${matched ? "contains":"does not contain"} "${src}"`);
+                    if( !matched ) continue;
+
+                    const pathtail = arcfile['path'].substr( src.length );
+                    const nsrc = (src + pathtail).replace(/\/\//g, '/');
+                    const ndest = (dpath + pathtail).replace(/\/\//g, '/');
+                    const recdest = (fdest + pathtail).replace(/\/\//g, '/');
+
+                    console.log(`Extract "${nsrc}" -> "${ndest}"`);
+                    fileMap[nsrc] = ndest;
+
+                    //File.extractSourceDest(filepath, nsrc, ndest);
+                    let nf = { 'source':nsrc, 'dest':recdest };
+                    toCommit.push(nf);
+                    extractedForPath++;
+                }
+
+                if( 0 === extractedForPath )
+                    console.log(` *** No folders found for extraction for path: ${src}`);
+            }
+
+            // Avoid overwriting:
+            const overwrites = checkOverwrites(fileMap);
+
+            console.log(`DB committing files: ${JSON.stringify(toCommit,null,2)}`);
+
+            let finished = function()
+            {
+                if( toCommit.length > 0 )
+                    db.insertFiles(mod['modId'], toCommit);
+
+                mod['installed'] = true;
+                db.updateMod(mod);
+
+                statusBar.text = qsTr('Mod "%1" has been installed.').arg(mod['name']);
+                modMasterList = db.getMods();
+            }
+
+            if( Object.keys(fileMap).length > 0 )
+                mod['archiveObject'].extract( fileMap, function(result, contents) {
+                    if( result )
+                        finished();
+                }, function(sofar, total, latestSource, latestDest) {
+                    console.log(`Extraction: ${sofar}/${total} \t${latestSource} \t=> ${latestDest}`);
+                });
+            else
+                finished();
+        } );
     }
 
     function installBasicMod(mod)
@@ -1274,79 +1295,92 @@ ApplicationWindow {
         let sobj = repeaterSettings.objFor(currentGame);
         const filepath = sobj.modsPath + '/' + mod['filename'];
 
-        const filelist = File.archiveList(filepath);
+        if( !mod['archiveObject'] )
+            mod['archiveObject'] = File.archive(filepath);
 
-        // If everything is in a subdirectory, the SAME subdirectory, the mod creator is killing us:
-        let topdirs = [];
-        filelist.forEach( function(e) {
-            const p = e.path.toLowerCase().split(/\//g);
-            if( !topdirs.includes(p[0]) )
-                topdirs.push(p[0]);
-        } );
+        mod['archiveObject'].list( function(result, filelist) {
+            // If everything is in a subdirectory, the SAME subdirectory, the mod creator is killing us:
+            let topdirs = [];
+            filelist.forEach( function(e) {
+                const p = e['pathname'].toLowerCase().split(/\//g);
+                if( !topdirs.includes(p[0]) )
+                    topdirs.push(p[0]);
+            } );
 
-        let inDataDir = true;
-        filelist.forEach( function(e) {
-            const p = e.path.toLowerCase().split(/\//g);
-            //console.log(`[TD=${topdirs.length}] Comparing "${p[0]}" with "${currentGameEntry['datadir'].toLowerCase()}"...`);
-            if( inDataDir && topdirs.length !== 1 && p[0] === currentGameEntry['datadir'].toLowerCase() )
-                inDataDir = false;
-            else if( inDataDir && topdirs.length === 1 && p[1] === currentGameEntry['datadir'].toLowerCase() )
-                inDataDir = false;
-        } );
+            let inDataDir = true;
+            filelist.forEach( function(e) {
+                const p = e['pathname'].toLowerCase().split(/\//g);
+                //console.log(`[TD=${topdirs.length}] Comparing "${p[0]}" with "${currentGameEntry['datadir'].toLowerCase()}"...`);
+                if( inDataDir && topdirs.length !== 1 && p[0] === currentGameEntry['datadir'].toLowerCase() )
+                    inDataDir = false;
+                else if( inDataDir && topdirs.length === 1 && p[1] === currentGameEntry['datadir'].toLowerCase() )
+                    inDataDir = false;
+            } );
 
-        let fileMap = {};
-        let toCommit = [];
-        for( let a=0; a < filelist.length; a++ )
-        {
-            let f = filelist[a];
-            if( ''+f['type'] !== 'file' )
-                continue;
-
-            let parts = f['path'].split(/\//g);
-            const fpath = f['path'].replace(/\/\//g, '/');
-            let fdpath = f['path'];
-
-            if( topdirs.length === 1 )
+            let fileMap = {};
+            let toCommit = [];
+            for( let a=0; a < filelist.length; a++ )
             {
-                // Ex: "FNIS Behavior SE 7.6/Data/tools/GenerateFNIS_for_Users/GenerateFNISforUsers.exe"
-                //  -> "Data/tools/GenerateFNIS_for_Users/GenerateFNISforUsers.exe"
-                console.log("Mod author is possibly murdering me, Smalls.  Compensating...");
-                parts.shift();
+                let f = filelist[a];
+                if( ''+f['type'] !== 'file' )
+                    continue;
 
-                fdpath = parts.join('/');
-            }
+                let parts = f['pathname'].split(/\//g);
+                const fpath = f['pathname'].replace(/\/\//g, '/');
+                let fdpath = f['pathname'];
 
-            if( !inDataDir )
-            //if( parts[0].toLowerCase() === currentGameEntry['datadir'].toLowerCase() )
-            {
-                // Ex: "data/SKSE/Plugins/hdtSkinnedMeshConfigs/configs.xml"
-                //  -> "SKSE/Plugins/hdtSkinnedMeshConfigs/configs.xml"
-                console.log("Mod author is possibly killing me, Smalls.  Compensating...");
-                if( parts.length > 1 )
+                if( topdirs.length === 1 )
+                {
+                    // Ex: "FNIS Behavior SE 7.6/Data/tools/GenerateFNIS_for_Users/GenerateFNISforUsers.exe"
+                    //  -> "Data/tools/GenerateFNIS_for_Users/GenerateFNISforUsers.exe"
+                    console.log("Mod author is possibly murdering me, Smalls.  Compensating...");
                     parts.shift();
-                else
-                    parts.unshift('..'); // TODO: Maybe this should be sobj['gamePath']? For gamebryo this will work, though.
 
-                fdpath = parts.join('/');
+                    fdpath = parts.join('/');
+                }
+
+                if( !inDataDir )
+                //if( parts[0].toLowerCase() === currentGameEntry['datadir'].toLowerCase() )
+                {
+                    // Ex: "data/SKSE/Plugins/hdtSkinnedMeshConfigs/configs.xml"
+                    //  -> "SKSE/Plugins/hdtSkinnedMeshConfigs/configs.xml"
+                    console.log("Mod author is possibly killing me, Smalls.  Compensating...");
+                    if( parts.length > 1 )
+                        parts.shift();
+                    else
+                        parts.unshift('..'); // TODO: Maybe this should be sobj['gamePath']? For gamebryo this will work, though.
+
+                    fdpath = parts.join('/');
+                }
+
+                const dpath = (sobj.gamePath + '/' + currentGameEntry['datadir'] + '/' + fdpath).replace(/\/\//g, '/');
+                console.log(`Extract "${f['path']}" -> "${dpath}"`);
+                fileMap[fpath] = dpath;
+                //File.extractSourceDest(filepath, f['path'], dpath);
+                toCommit.push( { 'source':fpath, 'dest':fdpath, 'priority':0 } )
             }
 
-            const dpath = (sobj.gamePath + '/' + currentGameEntry['datadir'] + '/' + fdpath).replace(/\/\//g, '/');
-            console.log(`Extract "${f['path']}" -> "${dpath}"`);
-            fileMap[fpath] = dpath;
-            //File.extractSourceDest(filepath, f['path'], dpath);
-            toCommit.push( { 'source':fpath, 'dest':fdpath, 'priority':0 } )
-        }
+            let finished = function() {
+                if( toCommit.length > 0 )
+                    db.insertFiles(mod['modId'], toCommit);
 
-        if( Object.keys(fileMap).length > 0 )
-            File.extractBatch(filepath, fileMap);
-        if( toCommit.length > 0 )
-            db.insertFiles(mod['modId'], toCommit);
+                mod['installed'] = true;
+                db.updateMod(mod);
 
-        mod['installed'] = true;
-        db.updateMod(mod);
+                statusBar.text = qsTr('Basic mod "%1" has been installed.').arg(mod['name']);
+                modMasterList = db.getMods();
+            }
 
-        statusBar.text = qsTr('Basic mod "%1" has been installed.').arg(mod['name']);
-        modMasterList = db.getMods();
+            if( Object.keys(fileMap).length > 0 )
+                mod['archiveObject'].extract(fileMap, function(success, results) {
+                    if( success )
+                        finished();
+                }, function(sofar, total, latestSource, latestDest) {
+                    console.log(`Extraction: ${sofar}/${total} \t${latestSource} \t=> ${latestDest}`);
+                });
+            else
+                finished();
+        } );
     }
 
     function configureMod(mod, modinfo)

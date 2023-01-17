@@ -4,6 +4,22 @@
 #include <QIODevice>
 #include <QNetworkReply>
 
+HTTPHandle::HTTPHandle(HTTP *parent, QNetworkReply *reply)
+    : QObject(parent),
+      m_reply{reply}
+{}
+
+HTTPHandle::~HTTPHandle()
+{
+    m_reply->deleteLater();
+}
+
+void HTTPHandle::stop()
+{
+    if( m_reply )
+        m_reply->abort();
+}
+
 HTTP::HTTP(QQmlApplicationEngine *engine)
     : QObject{nullptr},
       m_engine(engine)
@@ -11,7 +27,7 @@ HTTP::HTTP(QQmlApplicationEngine *engine)
     m_qnam = new QNetworkAccessManager(this);
 }
 
-bool HTTP::get(const QString &url, QJSValue callback, const QVariant &headers, QJSValue progcb)
+HTTPHandle *HTTP::get(const QString &url, QJSValue callback, const QVariant &headers, QJSValue progcb)
 {
     QNetworkRequest request;
     request.setUrl(QUrl(url));
@@ -22,7 +38,7 @@ bool HTTP::get(const QString &url, QJSValue callback, const QVariant &headers, Q
         if( !headers.canConvert<QVariantMap>() )
         {
             m_engine->throwError(tr("HTTP.get expects a single object for headers"));
-            return false;
+            return NULL;
         }
 
         QVariantMap asmap = headers.toMap();
@@ -63,7 +79,6 @@ bool HTTP::get(const QString &url, QJSValue callback, const QVariant &headers, Q
             args << data;
             callback.call(args);
         }
-        reply->deleteLater();
     });
     connect(reply, &QNetworkReply::errorOccurred, this, [reply, this, callback]() mutable {
         if( callback.isCallable() )
@@ -75,13 +90,14 @@ bool HTTP::get(const QString &url, QJSValue callback, const QVariant &headers, Q
             args << data;
             callback.call(args);
         }
-        reply->deleteLater();
     });
 
-    return reply->error() == QNetworkReply::NoError;
+    if( reply->error() == QNetworkReply::NoError )
+        return new HTTPHandle(this, reply);
+    return NULL;
 }
 
-bool HTTP::getFile(const QString &url, const QString &destPath, QJSValue callback, const QVariant &headers, QJSValue progcb)
+HTTPHandle *HTTP::getFile(const QString &url, const QString &destPath, QJSValue callback, const QVariant &headers, QJSValue progcb)
 {
     QNetworkRequest request;
     request.setUrl(QUrl(url));
@@ -92,7 +108,7 @@ bool HTTP::getFile(const QString &url, const QString &destPath, QJSValue callbac
         if( !headers.canConvert<QVariantMap>() )
         {
             m_engine->throwError(tr("HTTP.get expects a single object for headers"));
-            return false;
+            return NULL;
         }
 
         QVariantMap asmap = headers.toMap();
@@ -137,7 +153,6 @@ bool HTTP::getFile(const QString &url, const QString &destPath, QJSValue callbac
             args << data;
             callback.call(args);
         }
-        reply->deleteLater();
     });
     connect(reply, &QNetworkReply::errorOccurred, this, [reply, file, destPath, this, callback]() mutable {
         file->flush();
@@ -154,9 +169,9 @@ bool HTTP::getFile(const QString &url, const QString &destPath, QJSValue callbac
             args << data;
             callback.call(args);
         }
-
-        reply->deleteLater();
     });
 
-    return reply->error() == QNetworkReply::NoError;
+    if( reply->error() == QNetworkReply::NoError )
+        return new HTTPHandle(this, reply);
+    return NULL;
 }

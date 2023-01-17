@@ -79,7 +79,8 @@ int main(int argc, char *argv[])
 
     QQmlApplicationEngine engine;
 
-    File *file = new File();
+
+    File *file = new File(&engine);
     FOMODReader *fomod = new FOMODReader();
     Utils *utils = new Utils();
     NXMHandler *nxmHandler = new NXMHandler();
@@ -91,6 +92,13 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("NXMHandler", nxmHandler);
     engine.rootContext()->setContextProperty("HTTP", http);
     engine.rootContext()->setContextProperty("Args", args);
+
+    qmlRegisterUncreatableType<ArchiveExtractToFileWorker>("org.ONeill.ArchiveExtractToFileWorker", 1, 0, "ArchiveExtractToFileWorker", "Instantiated with Archive.extract(matrix, funcFinished)");
+    qmlRegisterUncreatableType<ArchiveExtractToMemoryWorker>("org.ONeill.ArchiveExtractToMemory", 1, 0, "ArchiveExtractToMemory", "Instantiated with Archive.get(target, funcFinished)");
+    qmlRegisterUncreatableType<ArchiveListWorker>("org.ONeill.ArchiveList", 1, 0, "ArchiveList", "Instantiated with Archive.list(funcFinished)");
+    qmlRegisterUncreatableType<ArchiveController>("org.ONeill.Archive", 1, 0, "Archive", "Instantiated with File.archive('path')");
+
+    qmlRegisterUncreatableType<HTTPHandle>("org.ONeill.HTTPHandle", 1, 0, "HTTPHandle", "Instantiated with HTTP.get or HTTP.getFile");
 
     qmlRegisterType<SqlDatabase>("org.ONeill.Sql", 1, 0, "SqlDatabase");
     qmlRegisterUncreatableType<SqlDatabaseQuery>("org.ONeill.Sql", 1, 0, "SqlDatabaseQuery", "SQL database query instantiated by SqlDatabaseConnection::query");
