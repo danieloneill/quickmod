@@ -82,7 +82,7 @@ function downloadFile(path)
                 if( !cancelled && 'OK' === code )
                 {
                     downloadProgress.close();
-                    installFromFilesystem(destPath);
+                    Mods.installFromFilesystem(destPath);
                 } else // Error
                     downloadProgress.close();
 

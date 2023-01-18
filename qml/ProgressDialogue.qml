@@ -8,6 +8,7 @@ Dialog {
     id: progressPage
     title: qsTr('Downloading...')
     modal: true
+    closePolicy: Popup.NoAutoClose
 
     property alias text: label.text
     property int to: 0
