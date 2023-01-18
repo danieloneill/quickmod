@@ -52,14 +52,14 @@ Dialog {
             ColumnLayout.fillWidth: true
             leftPadding: 10
             horizontalAlignment: Text.AlignLeft
-            text: qsTr("%1 additional downloads in queue...").arg(progressPage.queue.length)
+            text: qsTr("%1 additional %2 in queue...").arg(progressPage.queue.length).arg(progressPage.queue.length === 1 ? 'download' : 'downloads')
 
             MouseArea {
                 hoverEnabled: true
                 anchors.fill: parent
 
                 ToolTip.visible: containsMouse
-                ToolTip.text: qsTr('%1 downloads in queue:\n%2').arg(progressPage.queue.length).arg(progressPage.queue.map(e => e.length > 50 ? e.substring(0, 20)+'...'+e.substring(e.length-30) : e).join('\n'))
+                ToolTip.text: qsTr('%1 %2 in queue:\n%3').arg(progressPage.queue.length).arg(progressPage.queue.length === 1 ? 'download' : 'downloads').arg(progressPage.queue.map(e => e.length > 50 ? e.substring(0, 20)+'...'+e.substring(e.length-30) : e).join('\n'))
             }
         }
 

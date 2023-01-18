@@ -15,5 +15,7 @@
         <file>qml/ProgressDialogue.qml</file>
         <file>qml/OverwriteDialogue.qml</file>
         <file>qml/downloader.js</file>
+        <file>qml/plugins.js</file>
+        <file>qml/game.js</file>
     </qresource>
 </RCC>

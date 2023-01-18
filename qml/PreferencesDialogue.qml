@@ -9,6 +9,7 @@ Dialog {
     id: reviewPage
     title: qsTr('Preferences')
     modal: true
+    clip: true
 
     onAboutToShow: {
         let pages = [ {'name':qsTr('General')} ];
@@ -72,11 +73,10 @@ Dialog {
         }
     }
 
-    SwipeView {
+    StackLayout {
         anchors.fill: parent
         currentIndex: bar.currentIndex
-        interactive: false
-        clip: true
+        //interactive: false
 
         GridLayout {
             columns: 2
@@ -104,8 +104,11 @@ Dialog {
             model: gameDefinitions
 
             Item {
-                implicitWidth: innerGrid.implicitWidth + 40
-                implicitHeight: innerGrid.implicitHeight + 40
+                id: gameItem
+                implicitWidth: 580
+                implicitHeight: 240
+
+                readonly property real rowHeight: 32
 
                 property alias enabled: cbEnabled.checked
                 property alias modspath: modsPath.text
@@ -116,34 +119,113 @@ Dialog {
                 property string steamid: modelData['steamid']
                 property string gamename: modelData['name']
 
-                GridLayout {
-                    id: innerGrid
-                    columns: 3
-                    anchors.margins: 10
-                    anchors.fill: parent
-
-                    CheckBox {
-                        id: cbEnabled
-                        text: qsTr('Enabled')
-                        Layout.columnSpan: 3
+                CheckBox {
+                    id: cbEnabled
+                    text: qsTr('Enabled')
+                    anchors {
+                        top: parent.top
+                        left: parent.left
+                        margins: 10
                     }
+                }
+
+                Column {
+                    id: columnLabels
+                    spacing: 5
+                    anchors {
+                        top: cbEnabled.bottom
+                        left: parent.left
+                        margins: 10
+                    }
+                    height: childrenRect.height
+                    width: childrenRect.width
 
                     Label {
+                        height: gameItem.rowHeight
                         text: qsTr('Mod Storage Directory:')
                         enabled: cbEnabled.checked
                     }
+                    Label {
+                        height: gameItem.rowHeight
+                        text: qsTr('Mod Staging Directory:')
+                        enabled: cbEnabled.checked
+                    }
+                    Label {
+                        height: gameItem.rowHeight
+                        text: qsTr('Game Data Directory:')
+                        enabled: cbEnabled.checked
+                    }
+                    Label {
+                        height: gameItem.rowHeight
+                        text: qsTr('User Data Directory:')
+                        enabled: cbEnabled.checked
+                    }
+                }
+
+                Column {
+                    id: columnEdits
+                    spacing: 5
+                    anchors {
+                        left: columnLabels.right
+                        top: cbEnabled.bottom
+                        right: columnButtons.left
+                        margins: 10
+                    }
+                    height: childrenRect.height
 
                     TextField {
                         id: modsPath
                         enabled: cbEnabled.checked
-                        Layout.fillWidth: true
+                        height: gameItem.rowHeight
+                        width: columnEdits.width
 
                         ToolTip.visible: hovered
                         ToolTip.text: qsTr('This is where the mod archive itself is stashed for safe-keeping.\n\nEg: /DATA/SteamLibrary/steamapps/common/%1/Quickmods').arg(gamename)
                     }
+                    TextField {
+                        id: modStagingPath
+                        enabled: cbEnabled.checked
+                        height: gameItem.rowHeight
+                        width: columnEdits.width
+
+                        ToolTip.visible: hovered
+                        ToolTip.text: qsTr('This is where mods are extracted to.\n\nEg: /DATA/SteamLibrary/steamapps/common/%1/QuickmodStaging').arg(gamename)
+                    }
+                    TextField {
+                        id: gamePath
+                        enabled: cbEnabled.checked
+                        height: gameItem.rowHeight
+                        width: columnEdits.width
+
+                        ToolTip.visible: hovered
+                        ToolTip.text: qsTr('Where the game is installed.\n\nEg: /DATA/SteamLibrary/steamapps/common/%1').arg(gamename)
+                    }
+                    TextField {
+                        id: userDataPath
+                        enabled: cbEnabled.checked
+                        height: gameItem.rowHeight
+                        width: columnEdits.width
+
+                        ToolTip.visible: hovered
+                        ToolTip.text: qsTr('This is the root directory of wherever your data and preferences are stored.\n\nEg: /DATA/SteamLibrary/steamapps/compatdata/%1/pfx/drive_c/users/steamuser').arg(steamid)
+                    }
+                }
+
+                Column {
+                    id: columnButtons
+                    spacing: 5
+                    anchors {
+                        top: cbEnabled.bottom
+                        right: gameItem.right
+                        margins: 10
+                    }
+
+                    height: childrenRect.height
+                    width: childrenRect.width
 
                     Button {
                         text: qsTr('Browse...')
+                        height: gameItem.rowHeight
                         enabled: cbEnabled.checked
                         onClicked: {
                             modsPathDialogue.currentFolder = 'file://' + modsPath.text;
@@ -153,23 +235,9 @@ Dialog {
                         ToolTip.visible: hovered
                         ToolTip.text: qsTr('This is where the mod archive itself is stashed for safe-keeping.\n\nEg: /DATA/SteamLibrary/steamapps/common/%1/Quickmods').arg(gamename)
                     }
-
-                    Label {
-                        text: qsTr('Mod Staging Directory:')
-                        enabled: cbEnabled.checked
-                    }
-
-                    TextField {
-                        id: modStagingPath
-                        enabled: cbEnabled.checked
-                        Layout.fillWidth: true
-
-                        ToolTip.visible: hovered
-                        ToolTip.text: qsTr('This is where mods are extracted to.\n\nEg: /DATA/SteamLibrary/steamapps/common/%1/QuickmodStaging').arg(gamename)
-                    }
-
                     Button {
                         text: qsTr('Browse...')
+                        height: gameItem.rowHeight
                         enabled: cbEnabled.checked
                         onClicked: {
                             modStagingPathDialogue.currentFolder = 'file://' + modStagingPath.text;
@@ -179,23 +247,9 @@ Dialog {
                         ToolTip.visible: hovered
                         ToolTip.text: qsTr('This is where mods are extracted to.\n\nEg: /DATA/SteamLibrary/steamapps/common/%1/QuickmodStaging').arg(gamename)
                     }
-
-                    Label {
-                        text: qsTr('Game Data Directory:')
-                        enabled: cbEnabled.checked
-                    }
-
-                    TextField {
-                        id: gamePath
-                        enabled: cbEnabled.checked
-                        Layout.fillWidth: true
-
-                        ToolTip.visible: hovered
-                        ToolTip.text: qsTr('Where the game is installed.\n\nEg: /DATA/SteamLibrary/steamapps/common/%1').arg(gamename)
-                    }
-
                     Button {
                         text: qsTr('Browse...')
+                        height: gameItem.rowHeight
                         enabled: cbEnabled.checked
                         onClicked: {
                             gamePathDialogue.currentFolder = 'file://' + gamePath.text;
@@ -205,22 +259,8 @@ Dialog {
                         ToolTip.visible: hovered
                         ToolTip.text: qsTr('Where the game is installed.\n\nEg: /DATA/SteamLibrary/steamapps/common/%1').arg(gamename)
                     }
-
-                    Label {
-                        text: qsTr('User Data Directory:')
-                        enabled: cbEnabled.checked
-                    }
-
-                    TextField {
-                        id: userDataPath
-                        enabled: cbEnabled.checked
-                        Layout.fillWidth: true
-
-                        ToolTip.visible: hovered
-                        ToolTip.text: qsTr('This is the root directory of wherever your data and preferences are stored.\n\nEg: /DATA/SteamLibrary/steamapps/compatdata/%1/pfx/drive_c/users/steamuser').arg(steamid)
-                    }
-
                     Button {
+                        height: gameItem.rowHeight
                         text: qsTr('Browse...')
                         enabled: cbEnabled.checked
                         onClicked: {
@@ -231,7 +271,7 @@ Dialog {
                         ToolTip.visible: hovered
                         ToolTip.text: qsTr('This is the root directory of wherever your data and preferences are stored.\n\nEg: /DATA/SteamLibrary/steamapps/compatdata/%1/pfx/drive_c/users/steamuser').arg(steamid)
                     }
-                } // GridLayout
+                } // Column
 
                 Platform.FolderDialog {
                     id: modsPathDialogue
