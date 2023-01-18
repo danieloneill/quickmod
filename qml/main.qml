@@ -7,6 +7,8 @@ import Qt.labs.settings 1.0
 import Qt.labs.platform 1.1 as Platform
 
 import 'downloader.js' as Downloader
+import 'plugins.js' as Plugins
+import 'game.js' as Game
 
 ApplicationWindow {
     id: mainWin
@@ -373,62 +375,11 @@ ApplicationWindow {
         if( !currentGame )
             return;
 
-        loadForGame();
+        Game.loadForGame();
 
         settingsChanged();
-/*
-        // Testing:
-        console.log("Testing... ");
-        console.log("----------");
-        const a = File.archive("/DATA/SteamLibrary/steamapps/common/Skyrim Special Edition/Quickmods/StarClothMage.tar.xz");
-
-        const startTimeB = new Date();
-        const ents = ["zImages/Screenshot 2022-01-29 210536.png"];
-        let ba = a.get(ents, function(found, contents) {
-            const nowB = new Date();
-            console.log(`${found ? 'Extracted' : 'Failed to find'} ${ents[0]} (${contents[ents[0]].byteLength}B) in ${nowB.getTime()-startTimeB.getTime()}ms`);
-        } );
-
-        const startTimeA = new Date();
-        let w = a.list( function(result, entries) {
-            const nowA = new Date();
-            console.log(`Read ${entries.length} entries in ${nowA.getTime()-startTimeA.getTime()}ms. Beginning extract (all):`);
-
-            const paths = entries.filter( e => e['type'] === 'file' );
-            let matrix = {};
-            paths.forEach( e => { matrix[ e['pathname'] ] = '/tmp/test/'+e['pathname']; } );
-            console.log(JSON.stringify(matrix,null,2));
-
-            const startTimeC = new Date();
-            a.extract( matrix, function(code, map) {
-                const nowC = new Date();
-                console.log('Behold!');
-                console.log('--------')
-                const keys = Object.keys(map);
-                let succeeded = 0;
-                keys.forEach( function(k) {
-                    if( map[k] !== true )
-                        console.log(`Failed to extract file "${k}": ${map[k]}`);
-                    else
-                        succeeded++;
-                } );
-                console.log(`${succeeded} of ${paths.length} successfully extracted in ${nowC.getTime()-startTimeC.getTime()}ms`);
-
-            }, function(sofar, total, latestSource, latestDest) {
-                console.log(`Progress: [${sofar} / ${total}]: ${latestSource}\t => ${latestDest}`);
-            } );
-        } );
-*/
-
-/*
-        // DEBUG
-        const cfgraw = File.read('/home/doneill/code/quickmod/fun.xml');
-        const cfgjson = FomodReader.readXMLFile( Utils.autoDecode(cfgraw) );
-        JSON.stringify(cfgjson,null,2);
-        let modinfo = { 'config':cfgjson };
-        installFancyMod(currentGameEntry, [], '', modinfo, {'option_b':'selected', 'texture_red':'selected'});
-*/
     }
+
     Component.onDestruction: {
         settings.sync();
     }
@@ -455,27 +406,7 @@ ApplicationWindow {
         gamesMenuRepeater.model = gamesMenuOptions;
     }
 
-    onCurrentGameChanged: loadForGame();
-    function loadForGame()
-    {
-        db.close();
-
-        currentGameEntry = gameEntryByName(currentGame);
-        if( !currentGameEntry )
-            return;
-
-        const ent = installedEntity(currentGame);
-        if( !ent )
-            return;
-
-        const dbpath = `${ent['paths']['gamePath']}/Quickmod.sqlite`;
-        db.open(dbpath);
-
-        modMasterList = db.getMods();
-
-        statusBar.text = qsTr('Now managing "%1"').arg(currentGame);
-        readPlugins();
-    }
+    onCurrentGameChanged: Game.loadForGame();
 
     PreferencesDialogue {
         id: preferencesDialogue
@@ -494,221 +425,6 @@ ApplicationWindow {
 
             installFancyMod(m_mod, m_files, m_folders, m_modinfo, m_flags);
         }
-    }
-
-    function readLoadOrder()
-    {
-        let sobj = repeaterSettings.objFor(currentGame);
-        const adroot = `${sobj.userDataPath}/${currentGameEntry['appdir']}`;
-        const pluginspath = `${adroot}/${currentGameEntry['loadorder']}`;
-        const raw = ''+File.read(pluginspath);
-        //console.log(`Reading "${pluginspath}": ${raw}`);
-
-        const lines = raw.split('\r\n');
-        //console.log(`Lines: ${JSON.stringify(lines,null,0)}`);
-
-        let ents = { 'masters':[], 'light':[], 'normal':[] };
-        for( let a=0; a < lines.length; a++ )
-        {
-            const l = lines[a];
-            if( l.length < 4 )
-                continue;
-
-            if( l.substring(0,1) === '#' )
-                continue;
-
-            const llc = l.toLowerCase();
-            if( llc.endsWith(".esm") )
-                ents['masters'].push(l);
-            else if( llc.endsWith(".esl") )
-                ents['light'].push(l);
-            else if( llc.endsWith(".esp") )
-                ents['normal'].push(l);
-            else
-                console.log(` *** I don't know what to do with this entry: "${l}"`);
-        }
-
-        //console.log(`LoadOrder: ${JSON.stringify(plugins,null,2)}`);
-        return ents;
-    }
-
-    function writeLoadOrder(loadorder)
-    {
-        let output = ["# Generated by Quickmod"];
-        ['masters', 'light', 'normal'].forEach( function(sec) {
-            loadorder[sec].forEach( function(ent) {
-                output.push(`${ent}`);
-            } );
-        });
-        const res = output.join("\r\n");
-        console.log("Writing: "+res);
-
-        let sobj = repeaterSettings.objFor(currentGame);
-        const adroot = `${sobj.userDataPath}/${currentGameEntry['appdir']}`;
-        const lopath = `${adroot}/${currentGameEntry['loadorder']}`;
-        File.write(lopath, res);
-
-        return res;
-    }
-
-    function readPlugins()
-    {
-        let sobj = repeaterSettings.objFor(currentGame);
-        const adroot = `${sobj.userDataPath}/${currentGameEntry['appdir']}`;
-        const pluginspath = `${adroot}/${currentGameEntry['plugins']}`;
-        const raw = ''+File.read(pluginspath);
-        //console.log(`Reading "${pluginspath}": ${raw}`);
-
-        const lines = raw.split('\r\n');
-        //console.log(`Lines: ${JSON.stringify(lines,null,0)}`);
-
-        let plugins = { 'masters':[], 'light':[], 'normal':[] };
-        for( let a=0; a < lines.length; a++ )
-        {
-            const l = lines[a];
-            if( l.length < 4 )
-                continue;
-
-            if( l.substring(0,1) === '#' )
-                continue;
-
-            let nent = { 'enabled':false, 'filename':l };
-            if( l.substring(0,1) === '*' )
-            {
-                nent['enabled'] = true;
-                nent['filename'] = l.substring(1);
-            }
-
-            const llc = l.toLowerCase();
-            if( llc.endsWith(".esm") )
-                plugins['masters'].push(nent);
-            else if( llc.endsWith(".esl") )
-                plugins['light'].push(nent);
-            else if( llc.endsWith(".esp") )
-                plugins['normal'].push(nent);
-            else
-                console.log(` *** I don't know what to do with this entry: "${l}"`);
-        }
-
-        //console.log(`Plugins: ${JSON.stringify(plugins,null,2)}`);
-        return plugins;
-    }
-
-    function writePlugins(plugins)
-    {
-        let output = ["# Generated by Quickmod"];
-        ['masters', 'light', 'normal'].forEach( function(sec) {
-            plugins[sec].forEach( function(ent) {
-                output.push(`${ ent['enabled'] ? '*' : '' }${ent['filename']}`);
-            } );
-        });
-        const res = output.join("\r\n");
-        console.log("Writing: "+res);
-
-        let sobj = repeaterSettings.objFor(currentGame);
-        const adroot = `${sobj.userDataPath}/${currentGameEntry['appdir']}`;
-        const pluginspath = `${adroot}/${currentGameEntry['plugins']}`;
-        File.write(pluginspath, res);
-
-        return res;
-    }
-
-    function enableMod(mod)
-    {
-        let sobj = repeaterSettings.objFor(currentGame);
-        const files = db.getFiles(mod['modId']);
-        console.log(`Enabling "${mod['name']}"...`);
-
-        let updatePlugins = false;
-        let plugins = readPlugins();
-        let loadorder = readLoadOrder();
-        files.forEach( function(f) {
-            let baseName = f['dest'];
-
-            let parts = f['dest'].split(/\//g);
-            if( parts.length > 1 )
-                baseName = parts.pop();
-
-            const baseNameLC = baseName.toLowerCase();
-            const ent = { 'enabled':true, 'filename':baseName };
-            if( baseNameLC.endsWith(".esm") )
-            {
-                plugins['masters'].push(ent);
-                loadorder['masters'].push(baseName);
-                updatePlugins = true;
-            }
-            else if( baseNameLC.endsWith(".esl") )
-            {
-                plugins['light'].push(ent);
-                loadorder['light'].push(baseName);
-                updatePlugins = true;
-            }
-            else if( baseNameLC.endsWith(".esp") )
-            {
-                plugins['normal'].push(ent);
-                loadorder['normal'].push(baseName);
-                updatePlugins = true;
-            }
-        });
-
-        if( updatePlugins )
-        {
-            writePlugins(plugins);
-            writeLoadOrder(loadorder);
-            statusBar.text = qsTr('Enabled "%1".').arg(mod['name']);
-        }
-        else
-            statusBar.text = qsTr('Enabled "%1", but ... there was nothing to do, really.').arg(mod['name']);
-
-        mod['enabled'] = true;
-        db.updateMod(mod);
-        modMasterList = db.getMods();
-    }
-
-    function disableMod(mod)
-    {
-        let sobj = repeaterSettings.objFor(currentGame);
-        const files = db.getFiles(mod['modId']);
-        console.log(`Disabling "${mod['name']}"...`);
-
-        let updatePlugins = false;
-        let plugins = readPlugins();
-        let loadorder = readLoadOrder();
-        files.forEach( function(f) {
-            const parts = f['dest'].split(/\//g);
-            if( parts.length === 1 )
-            {
-                const baseName = parts.pop();
-
-                ['masters', 'light', 'normal'].forEach( function(sec) {
-                    let nsec = plugins[sec].filter( m => m['filename'] !== baseName );
-                    if( nsec.length !== plugins[sec].length )
-                    {
-                        plugins[sec] = nsec;
-                        updatePlugins = true;
-                    }
-
-                    let nlo = loadorder[sec].filter( m => m !== baseName );
-                    if( nsec.length !== loadorder[sec].length )
-                    {
-                        loadorder[sec] = nlo;
-                        updatePlugins = true;
-                    }
-                } );
-            }
-        });
-
-        if( updatePlugins )
-        {
-            writePlugins(plugins);
-            writeLoadOrder(loadorder);
-        }
-
-        statusBar.text = qsTr('Disabled "%1".').arg(mod['name']);
-
-        mod['enabled'] = false;
-        db.updateMod(mod);
-        modMasterList = db.getMods();
     }
 
     AboutDialogue {
@@ -920,20 +636,102 @@ ApplicationWindow {
         return overwrites;
     }
 
-    function addESP(espname)
+    function enableMod(mod)
     {
-        const entry = installedEntity(mainWin.currentGame);
-        if( !entry )
+        let sobj = repeaterSettings.objFor(currentGame);
+        const files = db.getFiles(mod['modId']);
+        console.log(`Enabling "${mod['name']}"...`);
+
+        let updatePlugins = false;
+        let plugins = Plugins.readPlugins();
+        let loadorder = Plugins.readLoadOrder();
+        files.forEach( function(f) {
+            let baseName = f['dest'];
+
+            let parts = f['dest'].split(/\//g);
+            if( parts.length > 1 )
+                baseName = parts.pop();
+
+            const baseNameLC = baseName.toLowerCase();
+            const ent = { 'enabled':true, 'filename':baseName };
+            if( baseNameLC.endsWith(".esm") )
+            {
+                plugins['masters'].push(ent);
+                loadorder['masters'].push(baseName);
+                updatePlugins = true;
+            }
+            else if( baseNameLC.endsWith(".esl") )
+            {
+                plugins['light'].push(ent);
+                loadorder['light'].push(baseName);
+                updatePlugins = true;
+            }
+            else if( baseNameLC.endsWith(".esp") )
+            {
+                plugins['normal'].push(ent);
+                loadorder['normal'].push(baseName);
+                updatePlugins = true;
+            }
+        });
+
+        if( updatePlugins )
         {
-            console.log(`Cannot find game data info for '${mainWin.currentGame}'!`);
-            return false;
+            Plugins.writePlugins(plugins);
+            Plugins.writeLoadOrder(loadorder);
+            statusBar.text = qsTr('Enabled "%1".').arg(mod['name']);
+        }
+        else
+            statusBar.text = qsTr('Enabled "%1", but ... there was nothing to do, really.').arg(mod['name']);
+
+        mod['enabled'] = true;
+        db.updateMod(mod);
+        modMasterList = db.getMods();
+    }
+
+    function disableMod(mod)
+    {
+        let sobj = repeaterSettings.objFor(currentGame);
+        const files = db.getFiles(mod['modId']);
+        console.log(`Disabling "${mod['name']}"...`);
+
+        let updatePlugins = false;
+        let plugins = Plugins.readPlugins();
+        let loadorder = Plugins.readLoadOrder();
+        files.forEach( function(f) {
+            const parts = f['dest'].split(/\//g);
+            if( parts.length === 1 )
+            {
+                const baseName = parts.pop();
+
+                ['masters', 'light', 'normal'].forEach( function(sec) {
+                    let nsec = plugins[sec].filter( m => m['filename'] !== baseName );
+                    if( nsec.length !== plugins[sec].length )
+                    {
+                        plugins[sec] = nsec;
+                        updatePlugins = true;
+                    }
+
+                    let nlo = loadorder[sec].filter( m => m !== baseName );
+                    if( nsec.length !== loadorder[sec].length )
+                    {
+                        loadorder[sec] = nlo;
+                        updatePlugins = true;
+                    }
+                } );
+            }
+        });
+
+        if( updatePlugins )
+        {
+            Plugins.writePlugins(plugins);
+            Plugins.writeLoadOrder(loadorder);
         }
 
-        const pluginini = entry['plugins'];
-        const loadorderini = entry['loadorder'];
-        console.log(`Gonna add '${espname}' to ${entry['paths']['userData']}/${entry['appdir']}/${loadorderini}'`);
-        console.log(`Gonna add '*${espname}' to ${entry['paths']['userData']}/${entry['appdir']}/${pluginini}'`);
-        return true;
+        statusBar.text = qsTr('Disabled "%1".').arg(mod['name']);
+
+        mod['enabled'] = false;
+        db.updateMod(mod);
+        modMasterList = db.getMods();
     }
 
     function addMod(mod)
@@ -1112,8 +910,8 @@ ApplicationWindow {
             if( !(ent instanceof Array) )
             {
                 const nent = {};
-                nent['source'] = ent['source'] ? ent['source']['Value'].replace(/\/\//g, '/') : '';
-                nent['dest'] = ent['destination'] ? ent['destination']['Value'].replace(/\/\//g, '/') : '';
+                nent['source'] = ent['source'] ? ent['source']['Value'].replace(/\/\//g, '/').replace(/\\/g, '/') : '';
+                nent['dest'] = ent['destination'] ? ent['destination']['Value'].replace(/\/\//g, '/').replace(/\\/g, '/') : '';
                 nent['priority'] = ent['priority'] ? ent['priority']['Value'] : 0;
                 to.push(nent);
                 return;
@@ -1121,8 +919,8 @@ ApplicationWindow {
 
             ent.forEach( function(f) {
                 const nent = {};
-                nent['source'] = f['source'] ? f['source']['Value'].replace(/\/\//g, '/') : '';
-                nent['dest'] = f['destination'] ? f['destination']['Value'].replace(/\/\//g, '/') : '';
+                nent['source'] = f['source'] ? f['source']['Value'].replace(/\/\//g, '/').replace(/\\/g, '/') : '';
+                nent['dest'] = f['destination'] ? f['destination']['Value'].replace(/\/\//g, '/').replace(/\\/g, '/') : '';
                 nent['priority'] = f['priority'] ? f['priority']['Value'] : 0;
                 to.push(nent);
             } );
@@ -1193,7 +991,7 @@ ApplicationWindow {
             {
                 let f = files[c];
                 const fdest = f['dest'].replace(/\/\//g, '/');
-                const src = `${relative.length > 0 ? relative+"/" : ""}${f['source']}`.replace(/\/\//g, '/');
+                const src = `${relative.length > 0 ? relative+"/" : ""}${f['source']}`;
                 const dpath = `${sobj.gamePath}/${currentGameEntry['datadir']}/${fdest}`;
                 //console.log(`1: Extract "${src}" -> "${dpath}"`);
 
@@ -1214,10 +1012,10 @@ ApplicationWindow {
             for( let c=0; c < folders.length; c++ )
             {
                 let f = folders[c];
-                const fdest = f['dest'].replace(/\/\//g, '/');
-                const src = `${relative.length > 0 ? relative+"/" : ""}${f['source']}`;
+                const fdest = f['dest'].replace(/\/\//g, '/').replace(/\\/g, '/');
+                const src = `${relative.length > 0 ? relative+"/" : ""}${f['source']}`.replace(/\\/g, '/');
                 const dpath = `${sobj.gamePath}/${currentGameEntry['datadir']}/${fdest}`;
-                //console.log(`1: Extract "${src}" -> "${dpath}"`);
+                console.log(`1: Extract "${src}" -> "${dpath}"`);
 
                 // const folderParts = f['source'].split(/\//g).filter( e => e.length > 0 && e !== '/' );
                 const folderParts = src.split(/\//g).filter( e => e.length > 0 && e !== '/' );
@@ -1228,6 +1026,7 @@ ApplicationWindow {
                 for( let d=0; d < filelist.length; d++ )
                 {
                     const arcfile = filelist[d];
+                    //console.log("Checking "+arcfile['pathname']+"...");
                     if( arcfile['type'] !== 'file' )
                         continue;
 
@@ -1240,10 +1039,10 @@ ApplicationWindow {
                             matched = false;
                     }
 
-                    //console.log(`Found that "${arcfile['path']}" ${matched ? "contains":"does not contain"} "${src}"`);
+                    //console.log(`Found that "${folderParts.join(' / ')}" ${matched ? "contains":"does not contain"} "${arcParts.join(' / ')}"`);
                     if( !matched ) continue;
 
-                    const pathtail = arcfile['path'].substr( src.length );
+                    const pathtail = arcfile['pathname'].substr( src.length );
                     const nsrc = (src + pathtail).replace(/\/\//g, '/');
                     const ndest = (dpath + pathtail).replace(/\/\//g, '/');
                     const recdest = (fdest + pathtail).replace(/\/\//g, '/');
