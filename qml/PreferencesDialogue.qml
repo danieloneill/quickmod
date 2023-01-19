@@ -189,7 +189,7 @@ Dialog {
                         width: columnEdits.width
 
                         ToolTip.visible: hovered
-                        ToolTip.text: qsTr('This is where mods are extracted to.\n\nEg: /DATA/SteamLibrary/steamapps/common/%1/QuickmodStaging').arg(gamename)
+                        ToolTip.text: qsTr('This is where mods are extracted to and linked to the game from.\n\nEg: /DATA/SteamLibrary/steamapps/common/%1/QuickmodStaging').arg(gamename)
                     }
                     TextField {
                         id: gamePath
@@ -283,7 +283,7 @@ Dialog {
                 }
 
                 Platform.FolderDialog {
-                    id: modsStagingPathDialogue
+                    id: modStagingPathDialogue
                     //visible: false
                     title: qsTr("Select where to extract mods to...")
                     onAccepted: {
