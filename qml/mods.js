@@ -582,13 +582,13 @@ function installFancyMod(mod, files, folders, modinfo, flags)
         }
 
         if( Object.keys(fileMap).length > 0 )
-            extractFileMap(finished);
+            extractFileMap(fileMap, finished);
         else
             finished();
     } );
 }
 
-function extractFileMap(fileMap)
+function extractFileMap(fileMap, successCallback)
 {
     let cancelled = false;
     const funcCancel = function() {
@@ -609,7 +609,7 @@ function extractFileMap(fileMap)
             return;
 
         if( result )
-            finished();
+            successCallback();
     }, function(sofar, total, latestSource, latestDest) {
         extractProgress.value = sofar;
         extractProgress.to = total;
@@ -703,7 +703,7 @@ function installBasicMod(mod)
         }
 
         if( Object.keys(fileMap).length > 0 )
-            extractFileMap(finished);
+            extractFileMap(fileMap, finished);
         else
             finished();
     } );
