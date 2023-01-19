@@ -38,6 +38,7 @@ function downloadFile(path)
 
     const headers = { 'apiKey':settings.nexusApiKey };
     console.log(`Headers: ${JSON.stringify(headers,null,2)}`);
+
     HTTP.get(reqUrl, function(code, content) {
         console.log(`Result: Code=${code} / Content:${content}`);
         if( code === 'OK' )
@@ -82,9 +83,12 @@ function downloadFile(path)
                 if( !cancelled && 'OK' === code )
                 {
                     downloadProgress.close();
+                    console.log("Download complete. Installing...");
                     Mods.installFromFilesystem(destPath);
-                } else // Error
+                } else if( !cancelled ) {
+                    console.log("Download error: "+code);
                     downloadProgress.close();
+                }
 
                 downloadProgress.cancel.disconnect( funcCancel );
                 downloadProgress.cancelAll.disconnect( funcCancelAll );

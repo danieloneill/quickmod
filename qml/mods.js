@@ -1,5 +1,7 @@
 function manifestFromFomod(filepath, cb)
 {
+    console.log("manifestFromFomod: "+filepath);
+
     const a = File.archive(filepath);
     a.list( function(success, filelist) {
         if( filelist.length === 0 )
@@ -91,37 +93,47 @@ function manifestFromFomod(filepath, cb)
 
 function installFromFilesystem(filepath, cb)
 {
-    const baseName = filepath.split(/\//g).pop();
-    statusBar.text = tr("Installing \"%1\"...").arg(baseName);
-    manifestFromFomod(filepath, function(result) {
-        if( false === result )
-        {
-            statusBar.text = tr("Error reading archive: %1").arg(filepath);
-            cb(false);
-            return;
-        }
+    if( !cb )
+        cb = function(result) { console.log("installFromFilesystem finished: "+result); }
 
-        if( !result['config'] || !result['info'] )
-        {
-            let ent = { 'filename':'', 'installed':false, 'enabled':false, 'name':baseName, 'author':'Unknown', 'version':'??', 'website':'', 'description':'', 'groups':[] };
-            if( result['info'] )
+    try {
+        let pathArray = filepath.split(/\//g);
+        let baseName = filepath;
+        if( pathArray.length > 0 )
+            baseName = pathArray.pop();
+
+        statusBar.text = qsTr("Installing \"%1\"...").arg(baseName);
+
+        manifestFromFomod(filepath, function(result) {
+            if( false === result )
             {
-                if( result['info']['fomod']['Name']['Characters'] )
-                    ent['name'] = result['info']['fomod']['Name']['Characters'];
-
-                ent['author'] = result['info']['fomod']['Author']['Characters'];
-                ent['version'] = result['info']['fomod']['Version']['Characters'];
-                ent['description'] = result['info']['fomod']['Description']['Characters'];
+                statusBar.text = qsTr("Error reading archive: %1").arg(filepath);
+                cb(false);
+                return;
             }
 
-            statusBar.text = tr("Added basic mod \"%1\".").arg(filepath);
-            cb( addMod2(filepath, ent) );
-            return;
-        }
+            if( !result['config'] || !result['info'] )
+            {
+                let ent = { 'filename':'', 'installed':false, 'enabled':false, 'name':baseName, 'author':'Unknown', 'version':'??', 'website':'', 'description':'', 'groups':[] };
+                if( result['info'] )
+                {
+                    if( result['info']['fomod']['Name']['Characters'] )
+                        ent['name'] = result['info']['fomod']['Name']['Characters'];
 
-        statusBar.text = tr("Added mod \"%1\".").arg(filepath);
-        cb( addMod(result) );
-    });
+                    ent['author'] = result['info']['fomod']['Author']['Characters'];
+                    ent['version'] = result['info']['fomod']['Version']['Characters'];
+                    ent['description'] = result['info']['fomod']['Description']['Characters'];
+                }
+
+                statusBar.text = qsTr("Added basic mod \"%1\".").arg(filepath);
+                cb( addMod2(filepath, ent) );
+                return;
+            }
+
+            statusBar.text = qsTr("Added mod \"%1\".").arg(filepath);
+            cb( addMod(result) );
+        });
+    } catch(err) { console.log("ERROR: "+err); }
 }
 
 function checkOverwrites(fileMap)
@@ -582,13 +594,13 @@ function installFancyMod(mod, files, folders, modinfo, flags)
         }
 
         if( Object.keys(fileMap).length > 0 )
-            extractFileMap(fileMap, finished);
+            extractFileMap(mod, fileMap, finished);
         else
             finished();
     } );
 }
 
-function extractFileMap(fileMap, successCallback)
+function extractFileMap(mod, fileMap, successCallback)
 {
     let cancelled = false;
     const funcCancel = function() {
@@ -685,7 +697,7 @@ function installBasicMod(mod)
             }
 
             const dpath = (sobj.gamePath + '/' + currentGameEntry['datadir'] + '/' + fdpath).replace(/\/\//g, '/');
-            console.log(`Extract "${f['filepath']}" -> "${dpath}"`);
+            console.log(`Extract "${f['pathname']}" -> "${dpath}"`);
             fileMap[fpath] = dpath;
             //File.extractSourceDest(filepath, f['path'], dpath);
             toCommit.push( { 'source':fpath, 'dest':fdpath, 'priority':0 } )
@@ -703,7 +715,7 @@ function installBasicMod(mod)
         }
 
         if( Object.keys(fileMap).length > 0 )
-            extractFileMap(fileMap, finished);
+            extractFileMap(mod, fileMap, finished);
         else
             finished();
     } );
