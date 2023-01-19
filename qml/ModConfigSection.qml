@@ -14,7 +14,7 @@ Column {
     property string sectionType: 'SelectExactlyOne'
     property variant sectionModel: []
 
-    property bool canProceed: sectionType === 'SelectExactlyOne' && sectionGroup.checkState === Qt.Unchecked ? false : true
+    property bool canProceed: ( sectionType === 'SelectExactlyOne' || sectionType === 'SelectAtLeastOne' ) && sectionGroup.checkState === Qt.Unchecked ? false : true
 
     Label { text: sectionName }
     ButtonGroup {

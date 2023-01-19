@@ -57,7 +57,7 @@ function downloadFile(path)
             const fileName = Utils.urlFilename(fileUrl);
             console.log("Extrapolated filename: "+fileName);
 
-            let sobj = repeaterSettings.objFor(currentGame);
+            let sobj = gameSettings.objFor(currentGame);
             const destPath = sobj.modsPath + '/' + fileName;
 
             let cancelled = false;

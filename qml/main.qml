@@ -13,8 +13,8 @@ import 'mods.js' as Mods
 
 ApplicationWindow {
     id: mainWin
-    width: 640
-    height: 480
+    width: 800
+    height: 600
     //visible: true
     title: qsTr("Quickmod")
 
@@ -129,7 +129,6 @@ ApplicationWindow {
 
         ModsTable {
             id: modTable
-            anchors.fill: parent
             model: modMasterList
             onInstallMod: function(mod) { Mods.installMod(mod); }
             onUninstallMod: function(mod) { Mods.uninstallMod(mod); }
@@ -207,6 +206,7 @@ ApplicationWindow {
 
     property alias currentGame: settings.currentGame
     property var currentGameEntry
+    property bool loadComplete: false
 
     Component.onCompleted: {
         console.log("Args: "+JSON.stringify(Args,null,2));
@@ -231,9 +231,8 @@ ApplicationWindow {
         if( !currentGame )
             return;
 
-        Game.loadForGame();
-
         settingsChanged();
+        loadComplete = true;
     }
 
     Component.onDestruction: {
@@ -249,7 +248,7 @@ ApplicationWindow {
         {
             const gd = gameDefinitions[a];
 
-            let sobj = repeaterSettings.objFor(gd['name']);
+            let sobj = gameSettings.objFor(gd['name']);
             const enabled = sobj.enabled;
 
             console.log(`: ${gd['name']} => ${enabled ? 'on' : 'off'}`);
@@ -260,9 +259,10 @@ ApplicationWindow {
         }
         console.log('`---');
         gamesMenuRepeater.model = gamesMenuOptions;
+        Game.loadForGame();
     }
 
-    onCurrentGameChanged: Game.loadForGame();
+    onCurrentGameChanged: if( loadComplete ) Game.loadForGame();
 
     PreferencesDialogue {
         id: preferencesDialogue
@@ -288,35 +288,8 @@ ApplicationWindow {
         anchors.centerIn: parent
     }
 
-    Repeater {
-        id: repeaterSettings
-        Item {
-            property alias enabled: intobj.enabled
-            property alias gamePath: intobj.gamePath
-            property alias modsPath: intobj.modsPath
-            property alias modStagingPath: intobj.modStagingPath
-            property alias userDataPath: intobj.userDataPath
-
-            Settings {
-                id: intobj
-                category: modelData['name']
-
-                property bool enabled: false
-                property string gamePath
-                property string modsPath
-                property string modStagingPath
-                property string userDataPath
-            }
-        }
-        model: gameDefinitions
-
-        function objFor(name)
-        {
-            for( let a=0; a < repeaterSettings.count; a++ )
-                if( model[a]['name'] === name )
-                    return itemAt(a);
-            return false;
-        }
+    GameSettings {
+        id: gameSettings
     }
 
     property var modMasterList: []

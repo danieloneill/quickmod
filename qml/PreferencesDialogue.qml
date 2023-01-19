@@ -26,7 +26,7 @@ Dialog {
             ent.gamename = g['name'];
             ent.steamid = g['steamid'];
 
-            let sobj = repeaterSettings.objFor(g['name']);
+            let sobj = gameSettings.objFor(g['name']);
             ent.enabled = sobj.enabled || false;
             ent.modspath = sobj.modsPath || `/DATA/SteamLibrary/steamapps/common/${g['gamedir']}/Quickmods`;
             ent.modstagingpath = sobj.modStagingPath || `/DATA/SteamLibrary/steamapps/common/${g['gamedir']}/QuickmodStaging`;
@@ -42,7 +42,7 @@ Dialog {
             let g = gameDefinitions[a];
             const ent = gamesRepeater.itemAt(a);
 
-            let sobj = repeaterSettings.objFor(g['name']);
+            let sobj = gameSettings.objFor(g['name']);
             sobj.enabled = ent.enabled;
             sobj.modsPath = ent.modspath;
             sobj.modStagingPath = ent.modstagingpath;
@@ -73,29 +73,107 @@ Dialog {
         }
     }
 
-    StackLayout {
+    Item {
+        id: pager
         anchors.fill: parent
-        currentIndex: bar.currentIndex
-        //interactive: false
+        property int currentIndex: bar.currentIndex
 
-        GridLayout {
-            columns: 2
+        implicitWidth: 750
+        implicitHeight: 400
+
+        Item {
+            id: contentStuff
+            visible: pager.currentIndex === 0
+            implicitHeight: childrenRect.height + 40
+            anchors.fill: parent
 
             Label {
+                id: labelVortexApiKey
+                anchors {
+                    top: parent.top
+                    left: parent.left
+                    bottom: textNexusAPI.bottom
+                    margins: 5
+                }
+
+                verticalAlignment: Text.AlignVCenter
                 text: qsTr('Vortex API Key:')
             }
             TextField {
                 id: textNexusAPI
-                Layout.fillWidth: true
+                anchors {
+                    top: parent.top
+                    right: parent.right
+                    left: labelVortexApiKey.right
+                    margins: 5
+                }
             }
 
             Label {
-                Layout.columnSpan: 2
-                Layout.fillWidth: true
+                id: labelAboutAPI
+                anchors {
+                    top: textNexusAPI.bottom
+                    left: parent.left
+                    right: parent.right
+                    margins: 5
+                }
+
                 textFormat: Text.RichText
                 wrapMode: Text.Wrap
                 text: qsTr(`I don't have a fancy application API key yet because I just whipped this app up to begin with, but if you're willing to take a chance and put your personal NexusMods API key in, here's where you'd do it.<br><br>You can find (or request) your personal API key at <a href="https://www.nexusmods.com/users/myaccount?tab=api">https://www.nexusmods.com/users/myaccount?tab=api</a> down at the bottom.<br><br>You'll also need to set <b>quickmod</b> as your system handler for nxm links.`)
                 onLinkActivated: function(url) { Qt.openUrlExternally(url); }
+            }
+
+            MenuSeparator {
+                id: sep
+                anchors {
+                    top: labelAboutAPI.bottom
+                    left: parent.left
+                    right: parent.right
+                    margins: 5
+                }
+            }
+
+            Label {
+                id: labelInstallMethod
+                anchors {
+                    top: sep.bottom
+                    left: parent.left
+                    bottom: installMethod.bottom
+                    margins: 5
+                }
+
+                verticalAlignment: Text.AlignVCenter
+                text: qsTr('Installation Method:')
+            }
+            ComboBox {
+                id: installMethod
+                anchors {
+                    left: labelInstallMethod.right
+                    top: sep.bottom
+                    right: parent.right
+                    margins: 5
+                }
+
+                model: [ { 'type':'symlink', 'text':'Symbolic Link' }, { 'type':'hardlink', 'text':'Hard Link' }, { 'type':'copy', 'text':'Copy Files' } ]
+                textRole: 'text'
+                valueRole: 'type'
+            }
+
+            Label {
+                anchors {
+                    top: installMethod.bottom
+                    left: parent.left
+                    right: parent.right
+                    margins: 5
+                }
+
+                textFormat: Text.RichText
+                wrapMode: Text.Wrap
+                text: qsTr("<ul><li><b>Symbolic Link</b> - Links to the configured mod files are created in your game's installation. Base game data cannot be mucked with. This is the safest option, and very fast.</li>"
+                          +"<li><b>Hard Link</b> - It's like a symbolic link but breaks if the mod files and game directory are on different media. This probably isn't what you want.</li>"
+                          +"<li><b>Copy Files</b> - This is the oldschool method: extract the mod files right into your goshdarn game directory. Technically it's the fastest option, but it isn't really safe."
+                          +"</ul><p><center><i>This isn't actually implemented yet, it will always be 'Copy Files'</i></center></p>")
             }
         }
 
@@ -105,6 +183,8 @@ Dialog {
 
             Item {
                 id: gameItem
+                visible: pager.currentIndex === 1+index
+                anchors.fill: parent
                 implicitWidth: 580
                 implicitHeight: 240
 

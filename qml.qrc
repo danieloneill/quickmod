@@ -18,5 +18,6 @@
         <file>qml/plugins.js</file>
         <file>qml/game.js</file>
         <file>qml/mods.js</file>
+        <file>qml/GameSettings.qml</file>
     </qresource>
 </RCC>

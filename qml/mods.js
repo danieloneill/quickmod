@@ -157,7 +157,7 @@ function checkOverwrites(fileMap)
 
 function enableMod(mod)
 {
-    let sobj = repeaterSettings.objFor(currentGame);
+    let sobj = gameSettings.objFor(currentGame);
     const files = db.getFiles(mod['modId']);
     console.log(`Enabling "${mod['name']}"...`);
 
@@ -209,7 +209,7 @@ function enableMod(mod)
 
 function disableMod(mod)
 {
-    let sobj = repeaterSettings.objFor(currentGame);
+    let sobj = gameSettings.objFor(currentGame);
     const files = db.getFiles(mod['modId']);
     console.log(`Disabling "${mod['name']}"...`);
 
@@ -302,7 +302,7 @@ function addMod(mod)
 function addMod2(archive, ent)
 {
     // Now copy it to our storage:
-    let sobj = repeaterSettings.objFor(currentGame);
+    let sobj = gameSettings.objFor(currentGame);
     const baseName = archive.split(/\//g).pop();
     const destPath = sobj.modsPath;
     console.log(`Creating directory "${destPath}"...`);
@@ -338,7 +338,7 @@ function installMod(mod, cb)
     statusBar.text = qsTr('Please wait, working...');
 
     console.log(`Installmod: ${JSON.stringify(mod,null,2)}`);
-    let sobj = repeaterSettings.objFor(currentGame);
+    let sobj = gameSettings.objFor(currentGame);
     const filepath = sobj.modsPath + '/' + mod['filename'];
 
     console.log(`Attempting to read manifest from fomod: ${filepath}`);
@@ -362,7 +362,7 @@ function reinstallMod(mod)
 
 function uninstallMod(mod)
 {
-    let sobj = repeaterSettings.objFor(currentGame);
+    let sobj = gameSettings.objFor(currentGame);
     const files = db.getFiles(mod['modId']);
     console.log(`Uninstalling "${mod['name']}"...`);
 
@@ -392,7 +392,7 @@ function deleteMod(mod)
     if( mod['installed'] )
         uninstallMod(mod);
 
-    let sobj = repeaterSettings.objFor(currentGame);
+    let sobj = gameSettings.objFor(currentGame);
     const filepath = sobj.modsPath + '/' + mod['filename'];
     File.rm(filepath);
 
@@ -404,7 +404,7 @@ function deleteMod(mod)
 
 function installFancyMod(mod, files, folders, modinfo, flags)
 {
-    let sobj = repeaterSettings.objFor(currentGame);
+    let sobj = gameSettings.objFor(currentGame);
     const filepath = sobj.modsPath + '/' + mod['filename'];
 
     const relative = modinfo['relative'];
@@ -635,7 +635,7 @@ function extractFileMap(mod, fileMap, successCallback)
 
 function installBasicMod(mod)
 {
-    let sobj = repeaterSettings.objFor(currentGame);
+    let sobj = gameSettings.objFor(currentGame);
     const filepath = sobj.modsPath + '/' + mod['filename'];
 
     if( !mod['archiveObject'] )

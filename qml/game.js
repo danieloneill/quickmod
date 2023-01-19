@@ -16,6 +16,7 @@ function loadForGame()
     modMasterList = db.getMods();
 
     statusBar.text = qsTr('Now managing "%1"').arg(currentGame);
+    mainWin.title = qsTr('Quickmod - %1').arg(currentGame);
     Plugins.readPlugins();
 }
 
@@ -34,7 +35,7 @@ function installedEntity(gamename)
 {
     let entry = gameEntryByName(gamename);
 
-    let sobj = repeaterSettings.objFor(gamename);
+    let sobj = gameSettings.objFor(gamename);
 
     const gpath = sobj.gamePath;
     if( !gpath || gpath.length === 0 )

@@ -35,8 +35,11 @@ Item {
         let p = true;
         for( let a=0; a < groupRepeater.model.length; a++ )
         {
-            const i = groupRepeater.itemAt(a).item;
-            if( !i.canProceed )
+            const item = groupRepeater.itemAt(a);
+            if( !item )
+                return;
+
+            if( !item.item.canProceed )
             {
                 console.log(`Can't proceed because we're blocked by section #${a+1}`);
                 p = false;

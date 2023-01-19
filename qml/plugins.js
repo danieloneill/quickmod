@@ -1,7 +1,7 @@
 
 function readLoadOrder()
 {
-    let sobj = repeaterSettings.objFor(currentGame);
+    let sobj = gameSettings.objFor(currentGame);
     const adroot = `${sobj.userDataPath}/${currentGameEntry['appdir']}`;
     const pluginspath = `${adroot}/${currentGameEntry['loadorder']}`;
     const raw = ''+File.read(pluginspath);
@@ -46,7 +46,7 @@ function writeLoadOrder(loadorder)
     const res = output.join("\r\n");
     console.log("Writing: "+res);
 
-    let sobj = repeaterSettings.objFor(currentGame);
+    let sobj = gameSettings.objFor(currentGame);
     const adroot = `${sobj.userDataPath}/${currentGameEntry['appdir']}`;
     const lopath = `${adroot}/${currentGameEntry['loadorder']}`;
     File.write(lopath, res);
@@ -56,7 +56,7 @@ function writeLoadOrder(loadorder)
 
 function readPlugins()
 {
-    let sobj = repeaterSettings.objFor(currentGame);
+    let sobj = gameSettings.objFor(currentGame);
     const adroot = `${sobj.userDataPath}/${currentGameEntry['appdir']}`;
     const pluginspath = `${adroot}/${currentGameEntry['plugins']}`;
     const raw = ''+File.read(pluginspath);
@@ -108,7 +108,7 @@ function writePlugins(plugins)
     const res = output.join("\r\n");
     console.log("Writing: "+res);
 
-    let sobj = repeaterSettings.objFor(currentGame);
+    let sobj = gameSettings.objFor(currentGame);
     const adroot = `${sobj.userDataPath}/${currentGameEntry['appdir']}`;
     const pluginspath = `${adroot}/${currentGameEntry['plugins']}`;
     File.write(pluginspath, res);
