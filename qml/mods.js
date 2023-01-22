@@ -91,7 +91,7 @@ function manifestFromFomod(filepath, cb)
     } );
 }
 
-function installFromFilesystem(filepath, cb)
+function installFromFilesystem(filepath, cb, gamecode, nexusModId, nexusFileId)
 {
     if( !cb )
         cb = function(result) { console.log("installFromFilesystem finished: "+result); }
@@ -112,9 +112,12 @@ function installFromFilesystem(filepath, cb)
                 return;
             }
 
+            let ent = { 'filename':'', 'installed':false, 'enabled':false, 'name':baseName, 'author':'Unknown', 'version':'??', 'website':'', 'description':'', 'groups':[] };
+
+            let ncb = function(result, filepath, ent) { cb(addMod(result, ent)) };
+
             if( !result['config'] || !result['info'] )
             {
-                let ent = { 'filename':'', 'installed':false, 'enabled':false, 'name':baseName, 'author':'Unknown', 'version':'??', 'website':'', 'description':'', 'groups':[] };
                 if( result['info'] )
                 {
                     if( result['info']['fomod']['Name']['Characters'] )
@@ -126,12 +129,31 @@ function installFromFilesystem(filepath, cb)
                 }
 
                 statusBar.text = qsTr("Added basic mod \"%1\".").arg(filepath);
-                cb( addMod2(filepath, ent) );
-                return;
-            }
+                ncb = function(result, filepath, ent) { cb( addMod2(filepath, ent)) };
+            } else
+                statusBar.text = qsTr("Adding mod \"%1\"...").arg(filepath);
 
-            statusBar.text = qsTr("Added mod \"%1\".").arg(filepath);
-            cb( addMod(result) );
+            if( gamecode && nexusModId && nexusFileId )
+            {
+                mainWin.getModInfo(gamecode, nexusModId, function(json) {
+                    statusBar.text = qsTr("Added basic mod \"%1\".").arg(filepath);
+                    if( json && json['name'] )
+                    {
+                        ent['name'] = json['name'];
+                        ent['author'] = json['user']['name'];
+                        ent['version'] = json['version'];
+                        ent['description'] = json['summary'];
+                    }
+
+                    ent['website'] = `https://www.nexusmods.com/${gamecode}/mods/${nexusModId}`;
+                    ent['nexusGameCode'] = gamecode;
+                    ent['nexusId'] = nexusModId;
+                    ent['nexusFileId'] = nexusFileId;
+
+                    ncb( result, filepath, ent );
+                } );
+            } else
+                ncb( result, filepath, ent );
         });
     } catch(err) { console.log("ERROR: "+err); }
 }
@@ -192,6 +214,7 @@ function enableMod(mod)
         Plugins.writePlugins(plugins);
         Plugins.writeLoadOrder(loadorder);
         statusBar.text = qsTr('Enabled "%1".').arg(mod['name']);
+        Plugins.readPlugins();
     }
     else
         statusBar.text = qsTr('Enabled "%1", but ... there was nothing to do, really.').arg(mod['name']);
@@ -201,11 +224,9 @@ function enableMod(mod)
     modMasterList = db.getMods();
 }
 
-function disableMod(mod)
+function removePlugin(mod)
 {
-    let sobj = gameSettings.objFor(currentGame);
     const files = db.getFiles(mod['modId']);
-    console.log(`Disabling "${mod['name']}"...`);
 
     let updatePlugins = false;
     let plugins = Plugins.readPlugins();
@@ -214,17 +235,17 @@ function disableMod(mod)
         const parts = f['dest'].split(/\//g);
         if( parts.length === 1 )
         {
-            const baseName = parts.pop();
+            const baseName = parts.pop().toLowerCase();
 
             ['masters', 'normal'].forEach( function(sec) {
-                let nsec = plugins[sec].filter( m => m['filename'] !== baseName );
+                let nsec = plugins[sec].filter( m => m['filename'].toLowerCase() !== baseName );
                 if( nsec.length !== plugins[sec].length )
                 {
                     plugins[sec] = nsec;
                     updatePlugins = true;
                 }
 
-                let nlo = loadorder[sec].filter( m => m !== baseName );
+                let nlo = loadorder[sec].filter( m => m.toLowerCase() !== baseName );
                 if( nsec.length !== loadorder[sec].length )
                 {
                     loadorder[sec] = nlo;
@@ -238,7 +259,16 @@ function disableMod(mod)
     {
         Plugins.writePlugins(plugins);
         Plugins.writeLoadOrder(loadorder);
+        Plugins.readPlugins();
     }
+}
+
+function disableMod(mod)
+{
+    let sobj = gameSettings.objFor(currentGame);
+    console.log(`Disabling "${mod['name']}"...`);
+
+    removePlugin(mod);
 
     statusBar.text = qsTr('Disabled "%1".').arg(mod['name']);
 
@@ -247,7 +277,7 @@ function disableMod(mod)
     modMasterList = db.getMods();
 }
 
-function addMod(mod)
+function addMod(mod, gameCode, nexusId, nexusFileId)
 {
     const i = mod['info'];
     console.log(`Add mod: (${mod['root']}) ${JSON.stringify(i,null,2)}`);
@@ -373,6 +403,8 @@ function uninstallMod(mod)
     } );
 
     db.removeModFiles(mod['modId']);
+
+    removePlugin(mod);
 
     mod['installed'] = false;
     db.updateMod(mod);

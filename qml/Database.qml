@@ -48,7 +48,7 @@ Item {
             return false;
         }
 
-        let q = conn.query("CREATE TABLE IF NOT EXISTS mods(modId INTEGER PRIMARY KEY NOT NULL, nexusId TEXT, name TEXT NOT NULL, author TEXT, version VARCHAR(32), website TEXT, description TEXT, groups TEXT, installed INT NOT NULL DEFAULT 0, enabled INT NOT NULL DEFAULT 0, filename TEXT)", []);
+        let q = conn.query("CREATE TABLE IF NOT EXISTS mods(modId INTEGER PRIMARY KEY NOT NULL, nexusGameCode TEXT, nexusId INTEGER, nexusFileId INTEGER, name TEXT NOT NULL, author TEXT, version VARCHAR(32), website TEXT, description TEXT, groups TEXT, installed INT NOT NULL DEFAULT 0, enabled INT NOT NULL DEFAULT 0, filename TEXT)", []);
         q.destroy();
 
         q = conn.query("CREATE TABLE IF NOT EXISTS files(fileId INTEGER PRIMARY KEY NOT NULL, modId INTEGER NOT NULL, relative TEXT, source TEXT, dest TEXT, priority INTEGER)", []);
@@ -56,6 +56,50 @@ Item {
 
         q = conn.query("CREATE TABLE IF NOT EXISTS selections(modId INTEGER UNIQUE NOT NULL, json TEXT)", []);
         q.destroy();
+
+        if( !upgradeIfNeeded() )
+        {
+            q = conn.query("CREATE TABLE IF NOT EXISTS version(version INTEGER NOT NULL)", []);
+            q.destroy();
+
+            q = conn.query("INSERT OR REPLACE INTO version (version)VALUES(1)", []);
+            q.destroy();
+        }
+    }
+
+    function upgradeIfNeeded()
+    {
+        try {
+            let q = conn.query("SELECT version FROM version", []);
+            let v = q.toArray();
+            q.destroy();
+
+            if( v.length === 1 )
+            {
+                if( v[0]['version'] === 1 )
+                    return true;
+
+                console.log(`This database version (${v[0]['version']}) isn't one I'm aware of, probably made with a newer version of quickmod.`);
+                return true;
+            }
+        } catch(err) {
+            console.log("No version table, probably version 0.");
+        }
+
+        // We're on version 0.
+        let nq = conn.query( "ALTER TABLE mods DROP COLUMN nexusId", []);
+        nq.destroy();
+
+        nq = conn.query( "ALTER TABLE mods ADD COLUMN nexusId INTEGER", []);
+        nq.destroy();
+
+        nq = conn.query( "ALTER TABLE mods ADD COLUMN nexusFileId INTEGER", []);
+        nq.destroy();
+
+        nq = conn.query( "ALTER TABLE mods ADD COLUMN nexusGameCode TEXT", []);
+        nq.destroy();
+
+        return false; // Because we didn't have a version table.
     }
 
     // Mods
@@ -63,7 +107,7 @@ Item {
     {
         if( !checkConnection ) return;
 
-        let q = conn.query("SELECT modId, name, nexusId, author, version, website, description, groups, enabled, installed, filename FROM mods");
+        let q = conn.query("SELECT modId, name, nexusGameCode, nexusId, nexusFileId, author, version, website, description, groups, enabled, installed, filename FROM mods");
         const results = q.toArray();
         q.destroy();
 
@@ -82,8 +126,8 @@ Item {
 
         const tgroups = JSON.stringify(modinfo['groups']);
 
-        let q = conn.query("UPDATE mods SET nexusId=?, name=?, author=?, version=?, website=?, description=?, groups=?, installed=?, enabled=?, filename=? WHERE modId=?",
-                               [modinfo['nexusId'], modinfo['name'], modinfo['author'], modinfo['version'], modinfo['website'], modinfo['description'], tgroups, modinfo['installed'], modinfo['enabled'], modinfo['filename'], modinfo['modId']]);
+        let q = conn.query("UPDATE mods SET nexusGameCode=?, nexusId=?, nexusFileId=?, name=?, author=?, version=?, website=?, description=?, groups=?, installed=?, enabled=?, filename=? WHERE modId=?",
+                               [modinfo['nexusGameCode'], modinfo['nexusId'], modinfo['nexusFileId'], modinfo['name'], modinfo['author'], modinfo['version'], modinfo['website'], modinfo['description'], tgroups, modinfo['installed'], modinfo['enabled'], modinfo['filename'], modinfo['modId']]);
         q.destroy();
     }
 
@@ -93,8 +137,8 @@ Item {
 
         const tgroups = JSON.stringify(modinfo['groups']);
 
-        let q = conn.query("INSERT INTO mods (nexusId, name, author, version, website, description, groups, installed, enabled, filename)VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                               [modinfo['nexusId'], modinfo['name'], modinfo['author'], modinfo['version'], modinfo['website'], modinfo['description'], tgroups, modinfo['installed'], modinfo['enabled'], modinfo['filename']]);
+        let q = conn.query("INSERT INTO mods (nexusGameCode, nexusId, nexusFileId, name, author, version, website, description, groups, installed, enabled, filename)VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                               [modinfo['nexusGameCode'], modinfo['nexusId'], modinfo['nexusFileId'], modinfo['name'], modinfo['author'], modinfo['version'], modinfo['website'], modinfo['description'], tgroups, modinfo['installed'], modinfo['enabled'], modinfo['filename']]);
         modinfo['modId'] = q.lastInsertId();
         q.destroy();
 

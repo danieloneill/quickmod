@@ -91,7 +91,7 @@ function readPlugins()
             nent['filename'] = l.substring(1);
         }
 
-        const llc = l.toLowerCase();
+        const llc = nent['filename'].toLowerCase();
 
         if( register[llc] )
             continue;
@@ -108,7 +108,6 @@ function readPlugins()
     }
 
     plugins = scanForLoose(plugins);
-
 
     ['masters', 'normal'].forEach( function(sec) {
         plugins[sec].forEach( function(ent) {

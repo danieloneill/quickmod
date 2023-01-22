@@ -23,6 +23,16 @@ ApplicationWindow {
     property bool m_gamingMode: false
     readonly property string m_tempPath: (''+Platform.StandardPaths.writableLocation(Platform.StandardPaths.TempLocation)).substring(7);
 
+    function installFromFilesystem(filePath, gamecode, nexusModId, nexusFileId)
+    {
+        Mods.installFromFilesystem(filePath, function() {}, gamecode, nexusModId, nexusFileId);
+    }
+
+    function getModInfo(gamecode, nexusModId, cb)
+    {
+        Downloader.modInfo(gamecode, nexusModId, cb);
+    }
+
     menuBar: Item {
         width: mainWin.width
         height: m_gamingMode ? 75 : menuBar.implicitHeight

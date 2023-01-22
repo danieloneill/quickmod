@@ -10,6 +10,36 @@ function downloadNext()
         mainWin.downloadFile(f);
     }
 }
+
+function modInfo(gamecode, nexusid, cb)
+{
+    if( !cb )
+        cb = function(result) {};
+
+    const reqUrl = `https://api.nexusmods.com/v1/games/${gamecode}/mods/${nexusid}.json`;
+    console.log(reqUrl);
+
+    const headers = { 'apikey':settings.nexusApiKey, 'accept':'application/json' };
+    console.log(`Mod Info Headers: ${JSON.stringify(headers,null,2)}`);
+
+    HTTP.get(reqUrl, function(code, content) {
+        console.log(`Mod Info Result: Code=${code} / Content:${content}`);
+        if( code === 'OK' )
+        {
+            let json = {};
+            try {
+                json = JSON.parse(content);
+            } catch(err) {
+                console.log(`Parse error: ${err}`);
+                return cb(false);
+            }
+
+            console.log("Mod Info: "+JSON.stringify(json,null,2));
+            return cb(json);
+        }
+    }, headers);
+}
+
 function downloadFile(path)
 {
     if( m_downloading )
@@ -35,6 +65,8 @@ function downloadFile(path)
 
     const reqUrl = `https://api.nexusmods.com/v1/games/${mainInfo[0]}/mods/${mainInfo[2]}/files/${mainInfo[4]}/download_link.json?key=${query['key']}&expires=${query['expires']}&user_id=${query['user_id']}`;
     console.log(reqUrl);
+
+    modInfo(mainInfo[0], mainInfo[2]);
 
     const headers = { 'apiKey':settings.nexusApiKey };
     console.log(`Headers: ${JSON.stringify(headers,null,2)}`);
@@ -84,7 +116,7 @@ function downloadFile(path)
                 {
                     downloadProgress.close();
                     console.log("Download complete. Installing...");
-                    Mods.installFromFilesystem(destPath);
+                    mainWin.installFromFilesystem(destPath, mainInfo[0], mainInfo[2], mainInfo[4]);
                 } else if( !cancelled ) {
                     console.log("Download error: "+code);
                     downloadProgress.close();
