@@ -179,13 +179,7 @@ function enableMod(mod)
             loadorder['masters'].push(baseName);
             updatePlugins = true;
         }
-        else if( baseNameLC.endsWith(".esl") )
-        {
-            plugins['light'].push(ent);
-            loadorder['light'].push(baseName);
-            updatePlugins = true;
-        }
-        else if( baseNameLC.endsWith(".esp") )
+        else if( baseNameLC.endsWith(".esl") || baseNameLC.endsWith(".esp") )
         {
             plugins['normal'].push(ent);
             loadorder['normal'].push(baseName);
@@ -222,7 +216,7 @@ function disableMod(mod)
         {
             const baseName = parts.pop();
 
-            ['masters', 'light', 'normal'].forEach( function(sec) {
+            ['masters', 'normal'].forEach( function(sec) {
                 let nsec = plugins[sec].filter( m => m['filename'] !== baseName );
                 if( nsec.length !== plugins[sec].length )
                 {

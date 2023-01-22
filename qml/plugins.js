@@ -12,7 +12,7 @@ function readLoadOrder()
 
     let register = {};
 
-    let ents = { 'masters':[], 'light':[], 'normal':[] };
+    let ents = { 'masters':[], 'normal':[] };
     for( let a=0; a < lines.length; a++ )
     {
         const l = lines[a];
