@@ -9,6 +9,7 @@ SOURCES += \
         src/http.cpp \
         src/main.cpp \
         src/fomodreader.cpp \
+        src/modreader.cpp \
         src/nxmhandler.cpp \
         src/utils.cpp \
         src/sqldatabase.cpp \
@@ -18,6 +19,7 @@ HEADERS += \
     src/file.h \
     src/fomodreader.h \
     src/http.h \
+    src/modreader.h \
     src/nxmhandler.h \
     src/utils.h \
     src/sqldatabase.h \

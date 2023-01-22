@@ -12,6 +12,7 @@
 #include "file.h"
 #include "fomodreader.h"
 #include "http.h"
+#include "modreader.h"
 #include "nxmhandler.h"
 #include "sqldatabase.h"
 #include "sqldatabasemodel.h"
@@ -81,6 +82,7 @@ int main(int argc, char *argv[])
 
 
     File *file = new File(&engine);
+    ModReader *modReader = new ModReader(file);
     FOMODReader *fomod = new FOMODReader();
     Utils *utils = new Utils();
     NXMHandler *nxmHandler = new NXMHandler();
@@ -88,6 +90,7 @@ int main(int argc, char *argv[])
 
     engine.rootContext()->setContextProperty("File", file);
     engine.rootContext()->setContextProperty("FomodReader", fomod);
+    engine.rootContext()->setContextProperty("ModReader", modReader);
     engine.rootContext()->setContextProperty("Utils", utils);
     engine.rootContext()->setContextProperty("NXMHandler", nxmHandler);
     engine.rootContext()->setContextProperty("HTTP", http);

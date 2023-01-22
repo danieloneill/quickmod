@@ -22,9 +22,6 @@ Item {
         width: implicitWidth > parent.width ? implicitWidth * 2 : parent.width * 2
 
         property variant widths: ({})
-        onWidthsChanged: {
-            console.log( "Widths: " + JSON.stringify(widths) );
-        }
 
         readonly property variant preferredWidths: [ 16, header.width*0.30, header.width*0.30, header.width*0.30, 16 ]
 
@@ -106,6 +103,8 @@ Item {
                 if( Qt.RightButton === ev.button )
                     cellMenu.popup();
             }
+
+            hoverEnabled: true
 
             onHeldChanged: {
                 //console.log(index+" is "+(held?'held':'not held'));
@@ -194,7 +193,14 @@ Item {
 
                 readonly property int rowIndex: index
 
-                color: (rowIndex % 2) === 0 ? Material.background : Qt.darker(Material.background, 1.20)
+                property color rowColour: (rowIndex % 2) === 0 ? Material.background : Qt.darker(Material.background, 1.20)
+                property color validColour: dragArea.modent && dragArea.modent['notfound'] ? '#888800' : rowColour
+
+                color: dragArea.modent && dragArea.modent['missing'] ? '#880000' : validColour
+
+                ToolTip.visible: dragArea.containsMouse && dragArea.modent && (dragArea.modent['missing'] || dragArea.modent['notfound']) ? true : false
+                ToolTip.text: dragArea.modent && dragArea.modent['missing'] ? qsTr('Missing (or loaded out of order) masters will prevent this plugin from loading:\n\n%1').arg(dragArea.modent['missing'].join('\n'))
+                                                                            : dragArea.modent && dragArea.modent['notfound'] ? qsTr("The file for this entry can't be found, so it won't be loaded.") : ''
 
                 Row {
                     id: realRow
@@ -217,25 +223,22 @@ Item {
 
                     Loader {
                         sourceComponent: textCell
-                        property int columnIndex: 1
                         property string modelText: dragArea.modent ? dragArea.modent['filepath'] : '???'
-                        width: header.widths ? header.widths[ columnIndex ] : 24
+                        width: header.widths ? header.widths[ 1 ] : 24
                         height: 24
                     }
 
                     Loader {
                         sourceComponent: textCell
-                        property int columnIndex: 1
                         property string modelText: dragArea.modent ? dragArea.modent['name'] : '???'
-                        width: header.widths ? header.widths[ columnIndex ] : 24
+                        width: header.widths ? header.widths[ 2 ] : 24
                         height: 24
                     }
 
                     Loader {
                         sourceComponent: textCell
-                        property int columnIndex: 1
                         property string modelText: dragArea.modent ? dragArea.modent['description'] : '???'
-                        width: header.widths ? header.widths[ columnIndex ] : 24
+                        width: header.widths ? header.widths[ 3 ] : 24
                         height: 24
                     }
                 } // Row

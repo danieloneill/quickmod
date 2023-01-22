@@ -106,6 +106,53 @@ function readPlugins()
             console.log(` *** I don't know what to do with this entry: "${l}"`);
     }
 
+    plugins = scanForLoose(plugins);
+
+
+    ['masters', 'normal'].forEach( function(sec) {
+        plugins[sec].forEach( function(ent) {
+            // Read plugin info:
+            const pluginPath = `${sobj.gamePath}/${currentGameEntry['datadir']}/${ent['filename']}`;
+            let info = ModReader.readSkyrimMod(pluginPath);
+            ent["plugin"] = info;
+            //console.log(pluginPath+": "+JSON.stringify(info,null,2));
+        } );
+    } );
+
+    delete register;
+    let inorder = [];
+    ['masters', 'normal'].forEach( function(sec) {
+        plugins[sec].forEach( function(ent) {
+            const lcfname = ent['filename'].toLowerCase();
+
+            inorder.push(lcfname);
+
+            if( ent['plugin'] )
+            {
+                if( ent['plugin']['masters'] )
+                {
+                    ent['plugin']['masters'].forEach( function(m) {
+                        const lcm = m.toLowerCase();
+                        if( !inorder.includes(lcm) )
+                        {
+                            console.log(`Can't find ${lcm} in ${JSON.stringify(inorder)}`);
+                            if( !ent['missing'] )
+                                ent['missing'] = [ m ];
+                            else
+                                ent['missing'].push(m);
+                        }
+                    } );
+                }
+
+                if( ent['plugin']['description'] )
+                    ent['description'] = ent['plugin']['description'];
+            }
+
+            console.log(`${ent['filename']}: ${JSON.stringify(ent['plugin'],null,2)}`);
+
+        } );
+    } );
+
     updatePluginsTable(plugins);
 
     //console.log(`Plugins: ${JSON.stringify(plugins,null,2)}`);
@@ -128,7 +175,49 @@ function writePlugins(plugins)
     const pluginspath = `${adroot}/${currentGameEntry['plugins']}`;
     File.write(pluginspath, res);
 
+    updatePluginsTable(plugins);
+
     return res;
+}
+
+function scanForLoose(plugins)
+{
+    let sobj = gameSettings.objFor(currentGame);
+    const path = `${sobj.gamePath}/${currentGameEntry['datadir']}`;
+    const contents = File.dirContents(path);
+    if( !contents )
+        return plugins; // ... weird?
+
+    const normalsLC = plugins['normal'].map( e => e['filename'].toLowerCase() );
+    const mastersLC = plugins['masters'].map( e => e['filename'].toLowerCase() );
+
+    for( let x=0; x < contents.length; x++ )
+    {
+        const ent = contents[x];
+        const lcfn = ent['fileName'].toLowerCase();
+        if( lcfn.endsWith('.esl') || lcfn.endsWith('.esp') )
+        {
+            if( !normalsLC.includes(lcfn) )
+            {
+                // ...append them.
+                let nent = { 'enabled':false, 'filename':ent['fileName'] };
+                plugins['normal'].push(nent);
+                normalsLC.push(lcfn);
+            }
+        }
+        else if( lcfn.endsWith('.esm') )
+        {
+            if( !mastersLC.includes(lcfn) )
+            {
+                // ...append them.
+                let nent = { 'enabled':false, 'filename':ent['fileName'] };
+                plugins['masters'].push(nent);
+                mastersLC.push(lcfn);
+            }
+        }
+    }
+
+    return plugins;
 }
 
 function disableMod(mod)
@@ -171,6 +260,15 @@ function updatePluginsTable(plugins)
     ['masters', 'normal'].forEach( function(sec) {
         plugins[sec].forEach( function(ent) {
             let nent = { 'enabled':ent['enabled'], 'filepath':ent['filename'], 'name':'???', 'description':'???' };
+
+            if( ent['description'] )
+                nent['description'] = ent['description'];
+
+            if( ent['missing'] )
+                nent['missing'] = ent['missing'];
+
+            if( !ent['plugin'] )
+                nent['notfound'] = true;
 
             let done = false;
             for( let a=0; a < mods.length && !done; a++ )
