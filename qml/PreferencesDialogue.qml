@@ -228,7 +228,7 @@ Dialog {
                     Label {
                         height: gameItem.rowHeight
                         text: qsTr('Mod Staging Directory:')
-                        enabled: cbEnabled.checked
+                        enabled: cbEnabled.checked && installMethod.currentValue === 'copy'
                     }
                     Label {
                         height: gameItem.rowHeight
@@ -264,7 +264,7 @@ Dialog {
                     }
                     TextField {
                         id: modStagingPath
-                        enabled: cbEnabled.checked
+                        enabled: cbEnabled.checked && installMethod.currentValue === 'copy'
                         height: gameItem.rowHeight
                         width: columnEdits.width
 
@@ -318,14 +318,14 @@ Dialog {
                     Button {
                         text: qsTr('Browse...')
                         height: gameItem.rowHeight
-                        enabled: cbEnabled.checked
+                        enabled: cbEnabled.checked && installMethod.currentValue === 'copy'
                         onClicked: {
                             modStagingPathDialogue.currentFolder = 'file://' + modStagingPath.text;
                             modStagingPathDialogue.open();
                         }
 
                         ToolTip.visible: hovered
-                        ToolTip.text: qsTr('This is where mods are extracted to.\n\nEg: /DATA/SteamLibrary/steamapps/common/%1/QuickmodStaging').arg(gamename)
+                        ToolTip.text: qsTr('This is where mods are extracted to and linked to the game from.\n\nEg: /DATA/SteamLibrary/steamapps/common/%1/QuickmodStaging').arg(gamename)
                     }
                     Button {
                         text: qsTr('Browse...')

@@ -17,6 +17,7 @@ function loadForGame()
 
     statusBar.text = qsTr('Now managing "%1"').arg(currentGame);
     mainWin.title = qsTr('Quickmod - %1').arg(currentGame);
+
     Plugins.readPlugins();
 }
 

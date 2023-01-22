@@ -90,7 +90,6 @@ ApplicationWindow {
 
     footer: Frame {
         implicitHeight: statusBar.height + 10
-        //implicitWidth: statusBar.width
         Label {
             id: statusBar
             anchors.centerIn: parent
@@ -110,10 +109,7 @@ ApplicationWindow {
             text: qsTr('Mods')
         }
         TabButton {
-            text: qsTr('Plugins')
-        }
-        TabButton {
-            text: qsTr('Load Order')
+            text: qsTr('Plugins / Load Order')
         }
     }
 
@@ -137,11 +133,16 @@ ApplicationWindow {
             onReinstallMod: function(mod) { Mods.reinstallMod(mod); }
             onDeleteMod: function(mod) { Mods.deleteMod(mod); }
         }
-        Item {
-            Label { anchors.centerIn: parent; text: qsTr('Not Yet Implemented'); }
-        }
-        Item {
-            Label { anchors.centerIn: parent; text: qsTr('Not Yet Implemented'); }
+        PluginsTable {
+            id: pluginsTable
+
+            onEnableMod: function(mod) { Plugins.enableMod(mod); }
+            onDisableMod: function(mod) { Plugins.disableMod(mod); }
+
+            onWriteRequested: function(plugins, loadOrder) {
+                Plugins.writePlugins(plugins);
+                Plugins.writeLoadOrder(loadOrder);
+            }
         }
     }
 
@@ -151,6 +152,8 @@ ApplicationWindow {
 
         property string currentGame
         property var modListColumnSizes
+        property var pluginsListColumnSizes
+        property var loadorderListColumnSizes
 
         property string nexusApiKey
         property string nexusUuid

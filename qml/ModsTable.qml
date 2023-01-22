@@ -137,13 +137,14 @@ Item {
                             onTriggered: reinstallMod(cellMenu.modent);
                         }
                     }
-                    MouseArea {
-                        anchors.fill: parent
-                        acceptedButtons: Qt.LeftButton | Qt.RightButton
-                        onClicked: function(ev) {
-                            if( Qt.RightButton === ev.button )
-                                cellMenu.popup();
-                        }
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    onClicked: function(ev) {
+                        if( Qt.RightButton === ev.button )
+                            cellMenu.popup();
                     }
                 }
             }
