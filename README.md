@@ -86,9 +86,9 @@ The simplest way is via Plasma's system settings, found in "Desktop Mode" on Ste
 
 * At present, this has been tested with a handful of mods, and it correctly functions with those. YMMV with whatever mod, but if it fails to install (or something breaks) please create a ticket with the mod name as the title.
 
-* Mods are installed in order, and loaded in that order. This isn't what anybody wants, but for now there is no load order manager. You'll have to manually edit your loadorder.txt because of this (for now).
+* ~~Mods are installed in order, and loaded in that order. This isn't what anybody wants, but for now there is no load order manager. You'll have to manually edit your loadorder.txt because of this (for now).~~
 
-* There currently is no "overwrite" protection: the latest mod will simply overwrite any other files (including masters).
+* There currently is no overwrite protection: the latest mod will simply overwrite any other files (including masters).
 
 * File tracking is VERY crude: if a new mod overwrites files in a different mod, that file will simply be deleted when either mod is uninstalled.
 
