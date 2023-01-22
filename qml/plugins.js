@@ -60,6 +60,7 @@ function writeLoadOrder(loadorder)
     return res;
 }
 
+let pluginCache = {};
 function readPlugins()
 {
     let sobj = gameSettings.objFor(currentGame);
@@ -113,8 +114,17 @@ function readPlugins()
         plugins[sec].forEach( function(ent) {
             // Read plugin info:
             const pluginPath = `${sobj.gamePath}/${currentGameEntry['datadir']}/${ent['filename']}`;
-            let info = ModReader.readSkyrimMod(pluginPath);
-            ent["plugin"] = info;
+            if( !pluginCache[pluginPath] )
+            {
+                let info = ModReader.readSkyrimMod(pluginPath);
+                if( info )
+                {
+                    ent["plugin"] = info;
+                    pluginCache[pluginPath] = info;
+                }
+            } else
+                ent['plugin'] = pluginCache[pluginPath];
+
             //console.log(pluginPath+": "+JSON.stringify(info,null,2));
         } );
     } );
@@ -148,8 +158,7 @@ function readPlugins()
                     ent['description'] = ent['plugin']['description'];
             }
 
-            console.log(`${ent['filename']}: ${JSON.stringify(ent['plugin'],null,2)}`);
-
+            //console.log(`${ent['filename']}: ${JSON.stringify(ent['plugin'],null,2)}`);
         } );
     } );
 
@@ -175,6 +184,7 @@ function writePlugins(plugins)
     const pluginspath = `${adroot}/${currentGameEntry['plugins']}`;
     File.write(pluginspath, res);
 
+    plugins = readPlugins();
     updatePluginsTable(plugins);
 
     return res;
