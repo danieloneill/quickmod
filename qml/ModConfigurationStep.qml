@@ -116,8 +116,8 @@ Item {
                     Layout.fillHeight: true
                     fillMode: AnimatedImage.PreserveAspectFit
                     property string imagePath
-                    source: imagePath.length > 0 ? 'file:///tmp/fomod/../' + imagePath.replace(/\\/g, '/').toLowerCase()
-                          : modConfigWindow.m_modinfo && modConfigWindow.m_modinfo['config'] &&  modConfigWindow.m_modinfo['config']['config']['moduleImage'] ? 'file:///tmp/fomod/../' + modConfigWindow.m_modinfo['config']['config']['moduleImage']['path']['Value'].replace(/\\/g, '/').toLowerCase()
+                    source: imagePath.length > 0 ? `file://${mainWin.m_tempPath}/fomod/../` + imagePath.replace(/\\/g, '/').toLowerCase()
+                          : modConfigWindow.m_modinfo && modConfigWindow.m_modinfo['config'] &&  modConfigWindow.m_modinfo['config']['config']['moduleImage'] ? `file://${mainWin.m_tempPath}/fomod/../` + modConfigWindow.m_modinfo['config']['config']['moduleImage']['path']['Value'].replace(/\\/g, '/').toLowerCase()
                           :  ''
                 }
             }

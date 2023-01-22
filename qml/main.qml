@@ -21,6 +21,7 @@ ApplicationWindow {
     Material.theme: Material.Dark
 
     property bool m_gamingMode: false
+    readonly property string m_tempPath: (''+Platform.StandardPaths.writableLocation(Platform.StandardPaths.TempLocation)).substring(7);
 
     menuBar: Item {
         width: mainWin.width
@@ -46,7 +47,7 @@ ApplicationWindow {
                 }
                 Action {
                     text: qsTr("&Enable mods in game");
-                    onTriggered: enableMods();
+                    onTriggered: Game.enableMods();
                     enabled: currentGame && gameDefinitions[currentGame] && gameDefinitions[currentGame]['enableMods']
                 }
                 MenuSeparator { }
@@ -214,6 +215,7 @@ ApplicationWindow {
     Component.onCompleted: {
         console.log("Args: "+JSON.stringify(Args,null,2));
         console.log("Sess:" + Utils.getEnv("DESKTOP_SESSION"));
+        console.log("Temp: "+m_tempPath);
 
         m_gamingMode = ("gamescope-wayland" === Utils.getEnv("DESKTOP_SESSION"));
 

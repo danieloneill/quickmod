@@ -32,12 +32,12 @@ function manifestFromFomod(filepath, cb)
 
             if( pathInfo )
             {
-                const raw = File.read('/tmp/fomod/info.xml');
+                const raw = File.read(`${mainWin.m_tempPath}/fomod/info.xml`);
                 result['info'] = FomodReader.readXMLFile( Utils.autoDecode(raw) );
             }
             if( pathConfig )
             {
-                const raw = File.read('/tmp/fomod/moduleconfig.xml');
+                const raw = File.read(`${mainWin.m_tempPath}/fomod/moduleconfig.xml`);
                 result['config'] = FomodReader.readXMLFile( Utils.autoDecode(raw) );
             }
 
@@ -70,12 +70,12 @@ function manifestFromFomod(filepath, cb)
                 pathConfig = pathConfig['pathname'];
 
             // Just grab the whole fomod contents, plop it in tmp:
-            File.rmrecursive("/tmp/fomod");
-            File.mkdir("/tmp/fomod", false);
+            File.rmrecursive(`${mainWin.m_tempPath}/fomod`);
+            File.mkdir(`${mainWin.m_tempPath}/fomod`, false);
             let toExtract = {};
             filelist.forEach(function(e) {
                 if( e['type'] === 'file' && e['pathname'].toLowerCase().startsWith(fomodLow) )
-                    toExtract[ e['pathname'] ] = '/tmp/fomod/'+e['pathname'].substring(fomodDir.length+1).toLowerCase();
+                    toExtract[ e['pathname'] ] = `${mainWin.m_tempPath}/fomod/${ e['pathname'].substring(fomodDir.length+1).toLowerCase() }`;
             });
             console.log("To Extract: "+JSON.stringify(toExtract,null,2));
 
