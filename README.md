@@ -7,6 +7,27 @@ Basic mod manager for Fallout 4, Fallout 4 VR, Skyrim SE/AE, and Skyrim VR on **
 
 What I'm trying to say is: **This probably isn't the app you want.**
 
+---
+To install this on a Steam Deck, I made a little installer... thing.
+
+To use it, download this installer file: [http://dawnnest.com/doneill/Quickmod%20Installer.desktop](http://dawnnest.com/doneill/Quickmod%20Installer.desktop)
+
+In your Downloads directory, run it. It'll ask if you trust it (and by proxy, me) to execute this possibly damaging and malicious script on your incredibly expensive luxury game consolehmmuahAHAHAHAhahaHAHA... I mean, click Continue.
+
+Theoretically, that's basically it. Just open it from the desktop icon and proceed to the **Setup** instructions below.
+
+Remember: You need to **open the manager** and **select the correct game** before clicking those NexusMods links.
+
+(Skyrim VR and Skyrim SE both use basically the same mods, and at least, the same NexusMods section. The same is true for Fallout 4 and Fallout 4 VR. While I could check to see if the currently loaded game profile matches the link *roughly*, I think it's better to not open that can of worms and pass the responsibility on to You, the Customer.)
+
+*What does this installer actually install?*
+
+I couldn't be messed with doing anything TOO complex, so it just downloads an archive containing a prebuilt binary, a new .desktop for your actual desktop mode Desktop, various sizes of the ugly icon, and another .desktop which should automatically associate nxm links. (Also hosted on my server.)
+
+You can see for yourself by just downloading and opening [the archive in question](http://dawnnest.com/~doneill/quickmod-steamdeck.tar.xz).
+
+---
+
 ## Building
 
 ### Requirements
