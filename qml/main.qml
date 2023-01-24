@@ -84,6 +84,7 @@ ApplicationWindow {
                         onClicked: {
                             currentGame = modelData['name'];
                             gamesMenu.close();
+                            settingsChanged();
                         }
                     }
                 }

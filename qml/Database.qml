@@ -86,18 +86,22 @@ Item {
             console.log("No version table, probably version 0.");
         }
 
-        // We're on version 0.
-        let nq = conn.query( "ALTER TABLE mods DROP COLUMN nexusId", []);
-        nq.destroy();
+        try {
+            // We're on version 0.
+            let nq = conn.query( "ALTER TABLE mods DROP COLUMN nexusId", []);
+            nq.destroy();
 
-        nq = conn.query( "ALTER TABLE mods ADD COLUMN nexusId INTEGER", []);
-        nq.destroy();
+            nq = conn.query( "ALTER TABLE mods ADD COLUMN nexusId INTEGER", []);
+            nq.destroy();
 
-        nq = conn.query( "ALTER TABLE mods ADD COLUMN nexusFileId INTEGER", []);
-        nq.destroy();
+            nq = conn.query( "ALTER TABLE mods ADD COLUMN nexusFileId INTEGER", []);
+            nq.destroy();
 
-        nq = conn.query( "ALTER TABLE mods ADD COLUMN nexusGameCode TEXT", []);
-        nq.destroy();
+            nq = conn.query( "ALTER TABLE mods ADD COLUMN nexusGameCode TEXT", []);
+            nq.destroy();
+        } catch(err) {
+            console.log("Failed to upgrade to version 1, so we probably have no database.");
+        }
 
         return false; // Because we didn't have a version table.
     }
