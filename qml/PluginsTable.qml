@@ -120,7 +120,9 @@ Item {
                     console.log("Not valid, reverting...");
                     visualModel.items.move(dragArea.DelegateModel.itemsIndex, previousIndex);
                 } else {
-                    console.log(`The new position of ${index} is ${dragArea.DelegateModel.itemsIndex}`);
+                    let nidx = dragArea.DelegateModel.itemsIndex;
+
+                    console.log(`The new position of ${index} is ${nidx}`);
                     saveLoadOrder();
                 }
             }
@@ -128,10 +130,10 @@ Item {
             function checkValid()
             {
                 let inMasters = true;
-                for( let a=0; a < pluginsTable.model.length; a++ )
+                for( let a=0; a < visualModel.items.count; a++ )
                 {
                     const ent = visualModel.items.get(a);
-                    console.log(`Visual item ${a}: ${JSON.stringify(ent.model.index)}`);
+                    //console.log(`Visual item ${a}: ${JSON.stringify(ent.model.index)}`);
                     //const modent = ent.model.modelData;
                     const modent = mmodel.get(ent.model.index);
 
@@ -153,11 +155,11 @@ Item {
 
                 let plugins = { 'masters':[], 'normal':[] };
                 let loadOrder = { 'masters':[], 'normal':[] };
-                for( let a=0; a < pluginsTable.model.length; a++ )
+                for( let a=0; a < visualModel.items.count; a++ )
                 {
                     const ent = visualModel.items.get(a);
                     //const modent = ent.model.modelData;
-                    const modent = mmodel.get(ent.model.index);
+                    const modent = mmodel.get(a);
 
                     const nent = { 'enabled':modent['enabled'], 'filename':modent['filepath'] };
                     if( modent['filepath'].toLowerCase().endsWith('.esm') )
@@ -316,15 +318,6 @@ Item {
 
             mmodel.set( lmmap[n]['index'], nent );
 
-        }
-
-        for( let c=0; c < mmodel.count; c++ )
-        {
-            const ent = visualModel.items.get(c);
-            if( c === ent.model.index )
-                continue;
-            console.log(`Visual item ${c}: ${JSON.stringify(ent.model.index)}`);
-            visualModel.items.move(c, ent.model.index);
         }
     }
 
