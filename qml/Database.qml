@@ -191,6 +191,28 @@ Item {
         return results;
     }
 
+    function getFilesEndingWith(suffixes)
+    {
+        if( !checkConnection ) return;
+
+        let qstr = "SELECT fileId, modId, relative, source, dest, priority FROM files";
+        let token = ' WHERE ';
+        let args = [];
+
+        // I has feels this is gonna get beat tf up...
+        suffixes.forEach( function(d) {
+            qstr += token + "dest LIKE '%' || ?";
+            token = ' OR ';
+            args.push(d);
+        } );
+
+        let q = conn.query(qstr, args);
+        const results = q.toArray();
+        q.destroy();
+
+        return results;
+    }
+
     function insertFile(modId, fileInfo)
     {
         if( !checkConnection ) return;

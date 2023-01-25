@@ -131,8 +131,9 @@ Item {
                 for( let a=0; a < pluginsTable.model.length; a++ )
                 {
                     const ent = visualModel.items.get(a);
-                    const modent = ent.model.modelData;
-                    //console.log(`Visual item ${a}: ${JSON.stringify(modent)}`);
+                    console.log(`Visual item ${a}: ${JSON.stringify(ent.model.index)}`);
+                    //const modent = ent.model.modelData;
+                    const modent = mmodel.get(ent.model.index);
 
                     if( modent['filepath'].toLowerCase().endsWith('.esp')
                      || modent['filepath'].toLowerCase().endsWith('.esl'))
@@ -155,7 +156,8 @@ Item {
                 for( let a=0; a < pluginsTable.model.length; a++ )
                 {
                     const ent = visualModel.items.get(a);
-                    const modent = ent.model.modelData;
+                    //const modent = ent.model.modelData;
+                    const modent = mmodel.get(ent.model.index);
 
                     const nent = { 'enabled':modent['enabled'], 'filename':modent['filepath'] };
                     if( modent['filepath'].toLowerCase().endsWith('.esm') )
@@ -281,10 +283,60 @@ Item {
         } // MouseArea
     } // Component:pluginRowDelegate
 
+    // Try to smoothly update the model to avoid our scroll position getting
+    // clobbered whenever we save a change.
+    onModelChanged: function() {
+        // we key on the filename:
+        let mnames = model.map( m => m['filepath'] );
+
+        let toremove = [];
+
+        let lmmap = {};
+        for( let a=0; a < mmodel.count; a++ )
+        {
+            const dentry = mmodel.get(a);
+            let ent = { 'index':a, 'entry':dentry };
+            if( !mnames.includes(dentry['filepath']) )
+                toremove.unshift(a);
+            else
+                lmmap[ dentry['filepath'] ] = ent;
+        }
+
+        toremove.forEach( i => mmodel.remove(i) );
+
+        for( let b=0; b < mnames.length; b++ )
+        {
+            const n = mnames[b];
+            const nent = model[b];
+            if( !lmmap[ n ] )
+            {
+                mmodel.append( nent );
+                continue;
+            }
+
+            mmodel.set( lmmap[n]['index'], nent );
+
+        }
+
+        for( let c=0; c < mmodel.count; c++ )
+        {
+            const ent = visualModel.items.get(c);
+            if( c === ent.model.index )
+                continue;
+            console.log(`Visual item ${c}: ${JSON.stringify(ent.model.index)}`);
+            visualModel.items.move(c, ent.model.index);
+        }
+    }
+
+    ListModel {
+        id: mmodel
+        dynamicRoles: true
+    }
+
     DelegateModel {
         id: visualModel
 
-        model: pluginsTable.model
+        model: mmodel
         delegate: pluginRowDelegate
     }
 

@@ -188,7 +188,6 @@ function enableMod(mod)
     let loadorder = Plugins.readLoadOrder();
     files.forEach( function(f) {
         let baseName = f['dest'];
-
         let parts = f['dest'].split(/\//g);
         if( parts.length > 1 )
             baseName = parts.pop();
@@ -233,7 +232,7 @@ function removePlugin(mod)
     let loadorder = Plugins.readLoadOrder();
     files.forEach( function(f) {
         const parts = f['dest'].split(/\//g);
-        if( parts.length === 1 )
+        if( parts.length > 0 )
         {
             const baseName = parts.pop().toLowerCase();
 
@@ -246,7 +245,7 @@ function removePlugin(mod)
                 }
 
                 let nlo = loadorder[sec].filter( m => m.toLowerCase() !== baseName );
-                if( nsec.length !== loadorder[sec].length )
+                if( nlo.length !== loadorder[sec].length )
                 {
                     loadorder[sec] = nlo;
                     updatePlugins = true;
@@ -721,6 +720,11 @@ function installBasicMod(mod)
 
                 fdpath = parts.join('/');
             }
+
+            if( fdpath.length === 0 )
+                fdpath = parts.pop();
+            if( !fdpath )
+                fdpath = f['pathname'];
 
             const dpath = (sobj.gamePath + '/' + currentGameEntry['datadir'] + '/' + fdpath).replace(/\/\//g, '/');
             console.log(`Extract "${f['pathname']}" -> "${dpath}"`);

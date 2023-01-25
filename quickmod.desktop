@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=Quickmod
+GenericName=Mod Manager
+Comment=Mod manager for Skyrim SE, Skyrim VR, Fallout 4, and Fallout 4 VR
+Keywords=mod;game;games;
+Icon=quickmod
+Type=Application
+Categories=Game;
+Exec=quickmod %u
+StartupNotify=false
+Terminal=false
+MimeType=x-scheme-handler/nxm;
