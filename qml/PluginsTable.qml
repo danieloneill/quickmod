@@ -124,6 +124,7 @@ Item {
 
                     console.log(`The new position of ${index} is ${nidx}`);
                     saveLoadOrder();
+                    visualModel.items.move(dragArea.DelegateModel.itemsIndex, previousIndex);
                 }
             }
 
@@ -159,7 +160,7 @@ Item {
                 {
                     const ent = visualModel.items.get(a);
                     //const modent = ent.model.modelData;
-                    const modent = mmodel.get(a);
+                    const modent = mmodel.get(ent.model.index);
 
                     const nent = { 'enabled':modent['enabled'], 'filename':modent['filepath'] };
                     if( modent['filepath'].toLowerCase().endsWith('.esm') )
@@ -316,8 +317,33 @@ Item {
                 continue;
             }
 
-            mmodel.set( lmmap[n]['index'], nent );
+            mmodel.set( b, nent );
+        }
 
+        for( let c=0; c < visualModel.items.count; c++ )
+        {
+            const vobj = visualModel.items.get(c);
+            const vidx = vobj.model.index;
+
+            let same = true;
+            const nent = mmodel.get(c);
+            const vent = mmodel.get(vidx);
+            const nkeys = Object.keys(nent);
+            for( let d=0; d < nkeys.length; d++ )
+            {
+                const k = nkeys[d];
+                if( vent[k] !== nent[k] )
+                {
+                    same = false;
+                    break;
+                }
+            }
+
+            if( same )
+                continue;
+
+            //console.log(`Updating ${c} => ${JSON.stringify(nent)}`);
+            mmodel.set( c, nent );
         }
     }
 
