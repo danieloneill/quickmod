@@ -151,9 +151,9 @@ ApplicationWindow {
             onEnableMod: function(mod) { Plugins.enableMod(mod); }
             onDisableMod: function(mod) { Plugins.disableMod(mod); }
 
-            onWriteRequested: function(plugins, loadOrder) {
+            onWriteRequested: function(plugins) {
                 Plugins.writePlugins(plugins);
-                Plugins.writeLoadOrder(loadOrder);
+                Plugins.writeLoadOrder(plugins);
             }
         }
     }

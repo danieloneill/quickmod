@@ -185,7 +185,7 @@ function enableMod(mod)
 
     let updatePlugins = false;
     let plugins = Plugins.readPlugins();
-    let loadorder = Plugins.readLoadOrder();
+
     files.forEach( function(f) {
         let baseName = f['dest'];
         let parts = f['dest'].split(/\//g);
@@ -193,31 +193,26 @@ function enableMod(mod)
             baseName = parts.pop();
 
         const baseNameLC = baseName.toLowerCase();
-        const ent = { 'enabled':true, 'filename':baseName };
-        if( baseNameLC.endsWith(".esm") )
+        if( baseNameLC.endsWith('.esp') || baseNameLC.endsWith('.esl') || baseNameLC.endsWith('.esm') )
         {
-            plugins['masters'].push(ent);
-            loadorder['masters'].push(baseName);
-            updatePlugins = true;
+            const found = Plugins.enableMod({'filename':baseName});
+            if( !found )
+            {
+                const ent = { 'enabled':true, 'filename':baseName };
+                plugins.push(ent);
+                updatePlugins = true;
+            }
         }
-        else if( baseNameLC.endsWith(".esl") || baseNameLC.endsWith(".esp") )
-        {
-            plugins['normal'].push(ent);
-            loadorder['normal'].push(baseName);
-            updatePlugins = true;
-        }
-    });
+    } );
 
     if( updatePlugins )
     {
         Plugins.writePlugins(plugins);
-        Plugins.writeLoadOrder(loadorder);
-        statusBar.text = qsTr('Enabled "%1".').arg(mod['name']);
+        Plugins.writeLoadOrder(plugins);
         Plugins.readPlugins();
     }
-    else
-        statusBar.text = qsTr('Enabled "%1", but ... there was nothing to do, really.').arg(mod['name']);
 
+    statusBar.text = qsTr('Enabled "%1".').arg(mod['name']);
     mod['enabled'] = true;
     db.updateMod(mod);
     modMasterList = db.getMods();
@@ -229,35 +224,25 @@ function removePlugin(mod)
 
     let updatePlugins = false;
     let plugins = Plugins.readPlugins();
-    let loadorder = Plugins.readLoadOrder();
     files.forEach( function(f) {
         const parts = f['dest'].split(/\//g);
         if( parts.length > 0 )
         {
             const baseName = parts.pop().toLowerCase();
 
-            ['masters', 'normal'].forEach( function(sec) {
-                let nsec = plugins[sec].filter( m => m['filename'].toLowerCase() !== baseName );
-                if( nsec.length !== plugins[sec].length )
-                {
-                    plugins[sec] = nsec;
-                    updatePlugins = true;
-                }
-
-                let nlo = loadorder[sec].filter( m => m.toLowerCase() !== baseName );
-                if( nlo.length !== loadorder[sec].length )
-                {
-                    loadorder[sec] = nlo;
-                    updatePlugins = true;
-                }
-            } );
+            let nsec = plugins.filter( m => m['filename'].toLowerCase() !== baseName );
+            if( nsec.length !== plugins.length )
+            {
+                plugins = nsec;
+                updatePlugins = true;
+            }
         }
     });
 
     if( updatePlugins )
     {
         Plugins.writePlugins(plugins);
-        Plugins.writeLoadOrder(loadorder);
+        Plugins.writeLoadOrder(plugins);
         Plugins.readPlugins();
     }
 }
