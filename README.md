@@ -10,7 +10,7 @@ What I'm trying to say is: **This probably isn't the app you want.**
 ---
 To install this on a Steam Deck, I made a little installer... thing.
 
-To use it, download this installer file: [http://dawnnest.com/doneill/Quickmod%20Installer.desktop](http://dawnnest.com/doneill/Quickmod%20Installer.desktop)
+To use it, download this installer file: [http://dawnnest.com/~doneill/Quickmod%20Installer.desktop](http://dawnnest.com/~doneill/Quickmod%20Installer.desktop)
 
 In your Downloads directory, run it. It'll ask if you trust it (and by proxy, me) to execute this possibly damaging and malicious script on your incredibly expensive luxury game consolehmmuahAHAHAHAhahaHAHA... I mean, click Continue.
 
